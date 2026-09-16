@@ -1,0 +1,158 @@
+<% function fmtDate(d) { return d ? new Date(d).toLocaleDateString('id-ID') : '-' ; } %>
+  <%- include('../partials/top', { title, activePage }) %>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center">
+        <label class="me-2 small fw-bold text-muted">Status:</label>
+        <select class="form-select form-select-sm" id="filterStatus" style="width:130px">
+          <option value="">Semua</option>
+          <option value="aktif" selected>Aktif</option>
+          <option value="tidak aktif">Tidak Aktif</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btnAdd"><i class="bi bi-plus"></i> Tambah Sales</button>
+    </div>
+
+    <div class="card p-3">
+      <table id="tblSales" class="table table-hover mb-0" style="width:100%">
+        <thead>
+          <tr>
+            <th style="width:50px">No</th>
+            <th>Nama</th>
+            <th>Komisi Frame</th>
+            <th>Komisi Lensa</th>
+            <th>Tanggal Kerja</th>
+            <th>Status</th>
+            <th style="width:120px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% data.forEach(function(item, i) { %>
+            <tr>
+              <td>
+                <%= i + 1 %>
+              </td>
+              <td>
+                <%= item.nama %>
+              </td>
+              <td><span class="badge bg-primary bg-opacity-25 text-primary">
+                  <%= item.komisi_frame || 0 %>%
+                </span></td>
+              <td><span class="badge bg-info bg-opacity-25 text-info">
+                  <%= item.komisi_lensa || 0 %>%
+                </span></td>
+              <td>
+                <%= fmtDate(item.tanggal_kerja) %>
+              </td>
+              <td><span class="badge <%= item.status === 'aktif' ? 'bg-success' : 'bg-danger' %>"><%= item.status %></span></td>
+              <td>
+                <button class="btn btn-sm btn-outline-secondary me-1 btn-edit" data-id="<%= item.id %>"
+                  data-nama="<%= item.nama %>" data-komisi_frame="<%= item.komisi_frame || 0 %>"
+                  data-komisi_lensa="<%= item.komisi_lensa || 0 %>"
+                  data-tanggal="<%= item.tanggal_kerja || '' %>"
+                  data-status="<%= item.status %>">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </td>
+            </tr>
+            <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="modal fade" id="formModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Sales</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="editId">
+            <div class="mb-3"><label class="form-label small">Nama Sales</label><input type="text" class="form-control"
+                id="nama" placeholder="Nama sales"></div>
+            <div class="row">
+              <div class="col-6 mb-3"><label class="form-label small">Komisi Frame (%)</label><input type="number"
+                  class="form-control" id="komisi_frame" min="0" max="100" step="0.5" value="0"></div>
+              <div class="col-6 mb-3"><label class="form-label small">Komisi Lensa (%)</label><input type="number"
+                  class="form-control" id="komisi_lensa" min="0" max="100" step="0.5" value="0"></div>
+            </div>
+            <div class="row">
+              <div class="col-6 mb-3"><label class="form-label small">Tanggal Kerja</label><input type="date"
+                  class="form-control" id="tanggal_kerja"></div>
+              <div class="col-6 mb-3"><label class="form-label small">Status</label>
+                <select class="form-select" id="status">
+                  <option value="aktif">Aktif</option>
+                  <option value="tidak aktif">Tidak Aktif</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+            <button class="btn btn-primary btn-sm" id="btnSave">Simpan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+$(function() {
+  var table = $('#tblSales').DataTable({ order: [], language: dtLanguageID });
+
+  function applyStatusFilter() {
+    var val = $('#filterStatus').val();
+    if (val) {
+      // Use regex exact match to avoid 'aktif' matching 'tidak aktif'
+      table.column(5).search('^' + val + '$', true, false).draw();
+    } else {
+      table.column(5).search('').draw();
+    }
+  }
+
+  $('#filterStatus').on('change', applyStatusFilter);
+  applyStatusFilter(); // apply default filter on load
+
+  var formModal = new bootstrap.Modal(document.getElementById('formModal'));
+
+   $('#btnAdd').on('click', function() {
+    $('#editId').val('');
+    $('#nama').val('');
+    $('#komisi_frame').val(0);
+    $('#komisi_lensa').val(0);
+    $('#tanggal_kerja').val('<%= todayStr() %>');
+    $('#status').val('aktif');
+    $('.modal-title').text('Tambah Sales');
+    formModal.show();
+  });
+
+  $(document).on('click', '.btn-edit', function() {
+    var $b = $(this);
+    $('#editId').val($b.data('id'));
+    $('#nama').val($b.data('nama'));
+    $('#komisi_frame').val($b.data('komisi_frame'));
+    $('#komisi_lensa').val($b.data('komisi_lensa'));
+    $('#tanggal_kerja').val($b.data('tanggal'));
+    $('#status').val($b.data('status'));
+    $('.modal-title').text('Edit Sales');
+    formModal.show();
+  });
+
+  $(document).on('click', '.btn-del', function() {
+    confirmDelete($(this).data('id'), $(this).data('url'));
+  });
+
+  $('#btnSave').on('click', function() {
+    var btn = this;
+    if (!setBtnLoading(btn)) return;
+    var id = $('#editId').val();
+    $.ajax({ url: id ? '/sales/' + id : '/sales', method: id ? 'PUT' : 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ nama: $('#nama').val(), komisi_frame: parseFloat($('#komisi_frame').val()) || 0, komisi_lensa: parseFloat($('#komisi_lensa').val()) || 0, tanggal_kerja: $('#tanggal_kerja').val(), status: $('#status').val() }),
+      success: function(r) { if (r.success) location.reload(); else resetBtn(btn); },
+      error: function(xhr) { showToast((xhr.responseJSON && xhr.responseJSON.message) || 'Gagal', 'danger'); resetBtn(btn); }
+    });
+  });
+});
+    </script>
+
+    <%- include('../partials/bottom') %>

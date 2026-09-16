@@ -1,0 +1,436 @@
+/* Kacamata POS — Custom Styles (Bootstrap 5 light theme overrides) */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --sidebar-w: 240px;
+  --header-h: 56px;
+  --accent: #6c63ff;
+  --accent-hover: #7c75ff;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  color: #1a1d27;
+}
+
+/* ====== Layout ====== */
+.app-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  margin-left: var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  height: var(--header-h);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-content {
+  padding: 24px;
+  flex: 1;
+}
+
+/* ====== Sidebar ====== */
+.sidebar {
+  width: var(--sidebar-w);
+  background: #ffffff;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.sidebar-menu-container {
+  flex: 1;
+  overflow-y: auto;
+
+  /* CSS Scroll Shadows */
+  background:
+    linear-gradient(#ffffff 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(rgba(255, 255, 255, 0), #ffffff 70%) 0 100%,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0)),
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0)) 0 100%;
+  background-repeat: no-repeat;
+  background-color: #ffffff;
+  background-size: 100% 40px, 100% 40px, 100% 14px, 100% 14px;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Custom Scrollbar for the sidebar */
+.sidebar-menu-container::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar-menu-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-menu-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.sidebar-menu-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-brand {
+  padding: 20px 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a1d27;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-brand i {
+  font-size: 1.5rem;
+  color: var(--accent);
+}
+
+.sidebar-section {
+  padding: 12px 12px 4px;
+}
+
+.sidebar-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: rgba(0, 0, 0, 0.4);
+  padding: 0 8px 6px;
+  font-weight: 600;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: rgba(0, 0, 0, 0.6);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+}
+
+.sidebar-link:hover {
+  color: #1a1d27;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-link.active {
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.3);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1d27;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  font-size: 0.6875rem;
+  color: rgba(0, 0, 0, 0.45);
+  text-transform: capitalize;
+}
+
+/* ====== Cards ====== */
+.card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.stat-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.stat-icon {
+  font-size: 1.75rem;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1d27;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.5);
+  margin-top: 2px;
+}
+
+/* ====== Table ====== */
+.table {
+  color: #3a3f4b;
+}
+
+.table thead th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(0, 0, 0, 0.5);
+  font-weight: 600;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+  padding: 12px 16px;
+}
+
+.table tbody td {
+  padding: 10px 16px;
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+
+.table-hover tbody tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* ====== Login ====== */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e8eaf0 0%, #f5f6fa 100%);
+}
+
+.login-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 40px;
+  width: 150%;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.1);
+}
+
+.login-logo {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+
+/* ====== Buttons ====== */
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* ====== Forms ====== */
+.form-control,
+.form-select {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.15);
+  color: #1a1d27;
+}
+
+.form-control:focus,
+.form-select:focus {
+  background: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(108, 99, 255, 0.15);
+  color: #1a1d27;
+}
+
+/* ====== Modal ====== */
+.modal-content {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+}
+
+/* ====== Responsive ====== */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .sidebar.show {
+    transform: translateX(0);
+  }
+
+  .app-main {
+    margin-left: 0;
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  .sidebar-backdrop.show {
+    display: block;
+    opacity: 1;
+  }
+}
+
+/* ====== Print ====== */
+@media print {
+
+  .sidebar,
+  .app-header,
+  .btn,
+  form {
+    display: none !important;
+  }
+
+  .app-main {
+    margin-left: 0;
+  }
+
+  .card {
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* ====== DataTables Light Theme ====== */
+div.dt-container {
+  color: #3a3f4b;
+}
+
+div.dt-container .dt-search input,
+div.dt-container .dt-length select {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.15);
+  color: #1a1d27;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+div.dt-container .dt-search input:focus {
+  background: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(108, 99, 255, 0.15);
+  outline: none;
+}
+
+div.dt-container .dt-info {
+  color: rgba(0, 0, 0, 0.5);
+  font-size: 0.8125rem;
+}
+
+div.dt-container .dt-paging .dt-paging-button {
+  color: rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  background: transparent;
+  margin: 0 2px;
+}
+
+div.dt-container .dt-paging .dt-paging-button.current,
+div.dt-container .dt-paging .dt-paging-button:hover {
+  color: #fff !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+div.dt-container .dt-paging .dt-paging-button.disabled {
+  color: rgba(0, 0, 0, 0.25) !important;
+  background: transparent !important;
+}
+
+table.dataTable thead th {
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+table.dataTable tbody tr {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+div.dt-container .dt-search,
+div.dt-container .dt-length {
+  margin-bottom: 12px;
+}
