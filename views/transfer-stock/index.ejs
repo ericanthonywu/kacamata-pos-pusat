@@ -1,361 +1,396 @@
 <%- include('../partials/top', { title, activePage }) %>
 <%- include('../partials/select2') %>
 
-<div class="row mb-4">
-  <div class="col-12 d-flex justify-content-between align-items-center">
-    <div>
-      <h4 class="mb-1"><i class="bi bi-arrow-left-right text-primary me-2"></i>Transfer Stok</h4>
-      <p class="text-muted small mb-0">Transfer dan minta stok barang antar cabang toko.</p>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-0">Transfer Stok ke Cabang</h5>
+    <small class="text-muted">Kirim stok barang langsung dari Pusat ke Cabang (kacamata-pos)</small>
+  </div>
+  <div class="small text-muted" id="mitraStatus">
+    Cabang: <span id="mitraStatusText">Memuat...</span>
+    <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-decoration-none" onclick="loadExternalItems()" title="Muat ulang data cabang">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
   </div>
 </div>
 
-<div class="row g-4">
-  <!-- Transfer Form Card -->
-  <div class="col-lg-6">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-header bg-transparent fw-bold py-3 d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-send me-2 text-primary"></i>Form Transfer / Request Stok</span>
+<div class="row g-3">
+  <!-- LEFT: Info Transfer -->
+  <div class="col-md-4">
+    <div class="card p-3 mb-3">
+      <h6 class="mb-3">Info Transfer</h6>
+
+      <div class="mb-3">
+        <label class="form-label small">Tujuan Transfer</label>
+        <input type="text" class="form-control form-control-sm fw-semibold bg-body-tertiary" value="Cabang (kacamata-pos)" readonly>
+        <div class="form-text small">Stok di Pusat akan berkurang dan dikirim ke Cabang.</div>
       </div>
-      <div class="card-body p-4">
-        <form id="transferForm">
-          <!-- Action Mode Selector -->
-          <div class="mb-4">
-            <label class="form-label small fw-bold text-uppercase text-muted mb-2">Tipe Transaksi</label>
-            <div class="row g-2">
-              <div class="col-md-6">
-                <input type="radio" class="btn-check" name="type" id="typeTransfer" value="transfer" checked>
-                <label class="btn btn-outline-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2" for="typeTransfer">
-                  <i class="bi bi-box-arrow-up-right"></i>
-                  <div class="text-start">
-                    <div class="fw-bold">Kirim Stok (Transfer Out)</div>
-                    <div class="small text-muted" style="font-size:0.75rem;">Kurangi stok dari cabang ini</div>
-                  </div>
-                </label>
-              </div>
-              <div class="col-md-6">
-                <input type="radio" class="btn-check" name="type" id="typeRequest" value="request">
-                <label class="btn btn-outline-success w-100 py-2 d-flex align-items-center justify-content-center gap-2" for="typeRequest">
-                  <i class="bi bi-box-arrow-in-down-left"></i>
-                  <div class="text-start">
-                    <div class="fw-bold">Minta Stok (Request In)</div>
-                    <div class="small text-muted" style="font-size:0.75rem;">Tambah stok ke cabang ini</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
 
-          <hr class="my-4">
+      <div class="mb-3">
+        <label class="form-label small">Tanggal</label>
+        <input type="date" class="form-control" id="tanggal" value="<%= todayStr() %>">
+      </div>
 
-          <!-- Dropdown 1: Choose item from local DB -->
-          <div class="mb-3">
-            <label for="local_barang_id" class="form-label small fw-bold">1. Pilih Barang (Cabang Ini)</label>
-            <select class="form-select" id="local_barang_id" required>
-              <option value="">-- Pilih Barang --</option>
-              <% barangList.forEach(function(item) { %>
-                <option value="<%= item.id %>" data-qty="<%= item.qty %>">
-                  <%= item.nama_barang %> <%= item.barcode_id ? ('(' + item.barcode_id + ')') : '' %> - Stok: <%= item.qty %>
-                </option>
-              <% }); %>
-            </select>
-            <div class="form-text small" id="localStockInfo">Pilih barang cabang ini terlebih dahulu.</div>
-          </div>
+      <div class="mb-0">
+        <label class="form-label small">Catatan</label>
+        <textarea class="form-control" id="notes" rows="3" placeholder="Catatan transfer (opsional)..."></textarea>
+      </div>
+    </div>
 
-          <!-- Quantity Input -->
-          <div class="mb-3">
-            <label for="qty" class="form-label small fw-bold">2. Jumlah Stok (Qty)</label>
-            <div class="input-group">
-              <input type="number" class="form-control" id="qty" min="1" value="1" required>
-              <span class="input-group-text">Pcs</span>
-            </div>
-            <div class="form-text small">Masukkan jumlah unit stok yang akan ditransfer atau diminta.</div>
-          </div>
-
-          <!-- Dropdown 2: Choose item from external endpoint -->
-          <div class="mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <label for="external_barang_id" class="form-label small fw-bold mb-0">3. Pilih Item (Cabang Mitra / Eksternal)</label>
-              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnReloadExternal">
-                <i class="bi bi-arrow-clockwise me-1"></i>Muat ulang data
-              </button>
-            </div>
-            <select class="form-select" id="external_barang_id" required>
-              <option value="">-- Memuat data item eksternal... --</option>
-            </select>
-            <div class="form-text small" id="externalStatusInfo">Item dari cabang mitra / eksternal.</div>
-          </div>
-
-          <!-- Notice summary alert -->
-          <div class="alert alert-info d-flex align-items-center gap-2 mb-4" id="transferSummaryAlert">
-            <i class="bi bi-info-circle-fill fs-5"></i>
-            <span class="small" id="summaryText">Transaksi ini akan mengurangi stok dari cabang ini.</span>
-          </div>
-
-          <!-- Action Button -->
-          <button type="button" class="btn btn-primary w-100 py-2 fw-semibold" id="btnSubmitTransfer">
-            <i class="bi bi-check-circle me-1"></i> Eksekusi Kirim Stok
-          </button>
-        </form>
+    <!-- Riwayat Sesi Ini -->
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Riwayat Sesi Ini</h6>
+        <span class="badge bg-secondary" id="sessionCount">0</span>
+      </div>
+      <div id="sessionLogs" class="small text-muted" style="max-height: 280px; overflow-y: auto;">
+        Belum ada transaksi transfer pada sesi ini.
       </div>
     </div>
   </div>
 
-  <!-- Recent Transfer Logs Card -->
-  <div class="col-lg-6">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-header bg-transparent fw-bold py-3 d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-clock-history me-2 text-secondary"></i>Aktivitas Sesi Ini</span>
-        <span class="badge bg-secondary" id="logCountBadge">0 Data</span>
+  <!-- RIGHT: Items -->
+  <div class="col-md-8">
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0">📦 Item Transfer</h6>
+        <button class="btn btn-sm btn-outline-primary" type="button" onclick="addItem()">
+          <i class="bi bi-plus"></i> Tambah Item
+        </button>
       </div>
-      <div class="card-body p-0 d-flex flex-column justify-content-between">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" id="tableSessionLogs">
-            <thead class="table-light small text-uppercase">
-              <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 15%;">Waktu</th>
-                <th style="width: 20%;">Tipe</th>
-                <th style="width: 30%;">Barang</th>
-                <th style="width: 12%; text-align: center;">Qty</th>
-                <th style="width: 18%; text-align: right;">Stok</th>
-              </tr>
-            </thead>
-            <tbody id="transferLogTbody" class="small">
-              <tr>
-                <td colspan="6" class="text-center text-muted py-4">
-                  Belum ada aktivitas transfer stok pada sesi ini.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <!-- Pagination footer -->
-        <div class="p-3 border-top d-flex justify-content-between align-items-center bg-body-tertiary" id="logPaginationWrapper" style="display: none !important;">
-          <span class="small text-muted" id="logPaginationInfo">Menampilkan 0-0 dari 0 data</span>
-          <nav>
-            <ul class="pagination pagination-sm mb-0" id="logPagination">
-            </ul>
-          </nav>
-        </div>
+
+      <div id="itemList">
+        <!-- Dynamic item rows will be rendered here -->
+      </div>
+
+      <div id="emptyMsg" class="text-center text-muted py-4" style="display: none;">
+        <i class="bi bi-inbox" style="font-size: 1.5rem;"></i>
+        <div class="small mt-1">Belum ada item transfer. Klik <strong>"Tambah Item"</strong> untuk mulai.</div>
+      </div>
+    </div>
+
+    <!-- Summary & Save -->
+    <div class="card p-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-6"><strong class="fs-5">TOTAL ITEM</strong></div>
+        <div class="col-6 text-end fw-bold fs-5 text-primary" id="totalDisplay">0 Barang (0 Pcs)</div>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary flex-fill" id="btnSimpan" onclick="saveTransfer(this)">
+          <i class="bi bi-send-check me-1"></i> Transfer ke Cabang
+        </button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-$(function () {
-  var logs = [];
-  var currentPage = 1;
-  var pageSize = 5;
+var barangMap = {};
+<% barangList.forEach(function(b) { %>
+  barangMap[<%= b.id %>] = {
+    id: <%= b.id %>,
+    nama_barang: <%- JSON.stringify(b.nama_barang) %>,
+    barcode_id: <%- JSON.stringify(b.barcode_id || '') %>,
+    qty: <%= Number(b.qty || 0) %>
+  };
+<% }); %>
 
-  // Initialize Select2 on dropdowns
-  $('#local_barang_id').select2({
+var externalItems = [];
+var externalLoaded = false;
+var itemIndex = 0;
+var sessionLogs = [];
+
+function getLocalOptionsHtml() {
+  var html = '<option value="">-- Pilih Barang --</option>';
+  Object.keys(barangMap).forEach(function (id) {
+    var b = barangMap[id];
+    var code = b.barcode_id ? (' (' + b.barcode_id + ')') : '';
+    html += '<option value="' + b.id + '" data-qty="' + b.qty + '">' +
+      escapeHtml(b.nama_barang) + code + ' (Stok: ' + b.qty + ')' +
+      '</option>';
+  });
+  return html;
+}
+
+function getExternalOptionsHtml() {
+  var html = '<option value="">-- Pilih Item Mitra --</option>';
+  externalItems.forEach(function (item) {
+    html += '<option value="' + escapeHtml(item.id) + '">' +
+      escapeHtml(item.nama_barang) + ' (' + escapeHtml(item.category || 'Ext') + ') - Stok: ' + (item.stock || 0) +
+      '</option>';
+  });
+  return html;
+}
+
+function loadExternalItems(callback) {
+  $('#mitraStatusText').html('<span class="spinner-border spinner-border-sm me-1"></span>Memuat...');
+  $.ajax({
+    url: '/transfer-stock/external-items',
+    method: 'GET',
+    success: function (res) {
+      if (res.success && res.data) {
+        externalItems = res.data.items || [];
+        externalLoaded = true;
+        $('#mitraStatusText').html('<span class="text-success fw-semibold">Terhubung (' + externalItems.length + ' item)</span>');
+
+        // Update any existing external dropdowns
+        $('.item-external').each(function () {
+          var curVal = $(this).val();
+          $(this).html(getExternalOptionsHtml()).val(curVal).trigger('change');
+        });
+      } else {
+        $('#mitraStatusText').html('<span class="text-danger">Gagal</span>');
+      }
+      if (callback) callback();
+    },
+    error: function () {
+      $('#mitraStatusText').html('<span class="text-danger">Gagal terhubung</span>');
+      if (callback) callback();
+    }
+  });
+}
+
+
+
+function addItem() {
+  var idx = itemIndex++;
+  var html = '<div class="border rounded p-2 mb-2 item-row" data-idx="' + idx + '">' +
+    '<div class="row g-2 align-items-start">' +
+      '<div class="col-md-5">' +
+        '<label class="form-label small mb-1">Barang (Cabang Ini) <span class="text-danger">*</span></label>' +
+        '<select class="form-select form-select-sm item-local" data-idx="' + idx + '">' +
+          getLocalOptionsHtml() +
+        '</select>' +
+        '<div class="small mt-1 stock-info" data-idx="' + idx + '" style="font-size:0.75rem;"></div>' +
+      '</div>' +
+      '<div class="col-md-4">' +
+        '<label class="form-label small mb-1">Item Cabang Mitra <span class="text-danger">*</span></label>' +
+        '<select class="form-select form-select-sm item-external" data-idx="' + idx + '">' +
+          getExternalOptionsHtml() +
+        '</select>' +
+      '</div>' +
+      '<div class="col-md-2">' +
+        '<label class="form-label small mb-1">Qty <span class="text-danger">*</span></label>' +
+        '<input type="number" class="form-control form-control-sm item-qty calc-input" data-idx="' + idx + '" value="1" min="1">' +
+      '</div>' +
+      '<div class="col-md-1 d-flex align-items-end justify-content-end" style="height: 58px;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(' + idx + ')" title="Hapus baris">' +
+          '<i class="bi bi-trash"></i>' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  $('#itemList').append(html);
+  $('#emptyMsg').hide();
+
+  var $local = $('.item-local[data-idx="' + idx + '"]');
+  var $ext = $('.item-external[data-idx="' + idx + '"]');
+
+  $local.select2({
     theme: 'bootstrap-5',
     placeholder: '-- Pilih Barang --',
     allowClear: true
+  }).on('select2:select', function () {
+    updateStockInfo(idx);
+    calcTotal();
+  }).on('select2:unselect', function () {
+    $('.stock-info[data-idx="' + idx + '"]').empty();
+    calcTotal();
   });
 
-  $('#external_barang_id').select2({
+  $ext.select2({
     theme: 'bootstrap-5',
-    placeholder: '-- Pilih Item Eksternal --',
+    placeholder: '-- Pilih Item Mitra --',
     allowClear: true
   });
 
-  function loadExternalItems() {
-    $('#external_barang_id').html('<option value="">-- Memuat data item eksternal... --</option>').trigger('change');
-    $.ajax({
-      url: '/transfer-stock/external-items',
-      method: 'GET',
-      success: function (res) {
-        if (res.success && res.data) {
-          var items = res.data.items || [];
-          var optionsHtml = '<option value="">-- Pilih Item Eksternal --</option>';
-          items.forEach(function (item) {
-            optionsHtml += '<option value="' + item.id + '">' +
-              item.nama_barang + ' (' + (item.category || 'Ext') + ') - Stok: ' + (item.stock || 0) +
-              '</option>';
-          });
-          $('#external_barang_id').html(optionsHtml).trigger('change');
-          $('#externalStatusInfo').text('Item eksternal siap diproses.');
-        } else {
-          $('#external_barang_id').html('<option value="">Gagal memuat item eksternal</option>').trigger('change');
-        }
-      },
-      error: function () {
-        $('#external_barang_id').html('<option value="">Error memuat item eksternal</option>').trigger('change');
-      }
-    });
+  calcTotal();
+}
+
+function removeItem(idx) {
+  $('.item-row[data-idx="' + idx + '"]').remove();
+  if ($('.item-row').length === 0) {
+    $('#emptyMsg').show();
+  }
+  calcTotal();
+}
+
+function updateStockInfo(idx) {
+  var $row = $('.item-row[data-idx="' + idx + '"]');
+  var $opt = $row.find('.item-local option:selected');
+  var qty = $opt.data('qty');
+  var $info = $row.find('.stock-info');
+
+  if (qty !== undefined && $opt.val()) {
+    var cls = qty <= 0 ? 'text-danger fw-bold' : 'text-success fw-bold';
+    $info.html('Stok saat ini: <span class="' + cls + '">' + qty + ' pcs</span>');
+  } else {
+    $info.empty();
+  }
+}
+
+function calcTotal() {
+  var totalItems = 0;
+  var totalPcs = 0;
+
+  $('.item-row').each(function () {
+    var localId = $(this).find('.item-local').val();
+    var qty = parseInt($(this).find('.item-qty').val(), 10) || 0;
+    if (localId && qty > 0) {
+      totalItems++;
+      totalPcs += qty;
+    }
+  });
+
+  $('#totalDisplay').text(totalItems + ' Barang (' + totalPcs + ' Pcs)');
+}
+
+$(document).on('input', '.calc-input', function () {
+  calcTotal();
+});
+
+function updateBarangStock(id, newQty) {
+  if (barangMap[id]) {
+    barangMap[id].qty = newQty;
+  }
+  $('.item-local').each(function () {
+    var $opt = $(this).find('option[value="' + id + '"]');
+    if ($opt.length) {
+      $opt.data('qty', newQty);
+      var t = $opt.text().replace(/\(Stok: -?\d+\)/, '(Stok: ' + newQty + ')');
+      $opt.text(t);
+    }
+  });
+}
+
+function saveTransfer(btn) {
+  var type = 'transfer';
+  var notes = $('#notes').val().trim();
+  var items = [];
+  var hasInvalid = false;
+  var stockError = '';
+
+  var rows = $('.item-row');
+  if (rows.length === 0) {
+    showToast('Tambahkan minimal 1 item transfer', 'warning');
+    return;
   }
 
-  loadExternalItems();
+  rows.each(function () {
+    var localId = $(this).find('.item-local').val();
+    var extId = $(this).find('.item-external').val();
+    var qty = parseInt($(this).find('.item-qty').val(), 10) || 0;
+    var stock = parseInt($(this).find('.item-local option:selected').data('qty'), 10);
 
-  $('#btnReloadExternal').on('click', function () {
-    loadExternalItems();
-  });
-
-  // Toggle mode text summary
-  $('input[name="type"]').on('change', function () {
-    var type = $(this).val();
-    if (type === 'transfer') {
-      $('#summaryText').text('Transaksi ini akan mengurangi stok dari cabang ini (Kirim Stok).');
-      $('#transferSummaryAlert').removeClass('alert-success').addClass('alert-info');
-      $('#btnSubmitTransfer').removeClass('btn-success').addClass('btn-primary')
-        .html('<i class="bi bi-check-circle me-1"></i> Eksekusi Kirim Stok');
-    } else {
-      $('#summaryText').text('Transaksi ini akan menambah stok ke cabang ini (Minta Stok).');
-      $('#transferSummaryAlert').removeClass('alert-info').addClass('alert-success');
-      $('#btnSubmitTransfer').removeClass('btn-primary').addClass('btn-success')
-        .html('<i class="bi bi-box-arrow-in-down-left me-1"></i> Eksekusi Minta Stok');
-    }
-  });
-
-  // Local item stock notice
-  $('#local_barang_id').on('change', function () {
-    var selected = $(this).find('option:selected');
-    var qty = selected.data('qty');
-    if (qty !== undefined) {
-      $('#localStockInfo').html('Sisa stok saat ini di cabang ini: <strong class="' + (qty <= 0 ? 'text-danger' : 'text-success') + '">' + qty + ' pcs</strong>');
-    } else {
-      $('#localStockInfo').text('Pilih barang cabang ini terlebih dahulu.');
-    }
-  });
-
-  // Form Submission
-  $('#btnSubmitTransfer').on('click', function () {
-    var btn = this;
-    var type = $('input[name="type"]:checked').val();
-    var localBarangId = $('#local_barang_id').val();
-    var externalBarangId = $('#external_barang_id').val();
-    var qty = parseInt($('#qty').val(), 10);
-
-    if (!localBarangId) {
-      showToast('Silakan pilih barang cabang ini', 'warning');
-      return;
-    }
-    if (!qty || qty <= 0) {
-      showToast('Masukkan jumlah stok yang valid (> 0)', 'warning');
-      return;
-    }
-    if (!externalBarangId) {
-      showToast('Silakan pilih item dari aplikasi eksternal', 'warning');
+    if (!localId && !extId && qty <= 0) {
       return;
     }
 
-    if (!setBtnLoading(btn)) return;
+    if (!localId) {
+      showToast('Pilih barang cabang ini untuk semua item', 'warning');
+      hasInvalid = true;
+      return false;
+    }
+    if (!extId) {
+      showToast('Pilih item cabang mitra untuk semua item', 'warning');
+      hasInvalid = true;
+      return false;
+    }
+    if (qty <= 0) {
+      showToast('Jumlah (qty) harus lebih besar dari 0', 'warning');
+      hasInvalid = true;
+      return false;
+    }
 
-    var payload = {
-      type: type,
-      local_barang_id: localBarangId,
-      external_barang_id: externalBarangId,
+    if (qty > stock) {
+      var name = $(this).find('.item-local option:selected').text();
+      stockError = 'Stok tidak mencukupi untuk ' + name;
+      hasInvalid = true;
+      return false;
+    }
+
+    items.push({
+      local_barang_id: parseInt(localId, 10),
+      external_barang_id: extId,
+      external_barang_nama: $(this).find('.item-external option:selected').text(),
       qty: qty
-    };
-
-    $.ajax({
-      url: '/transfer-stock/execute',
-      method: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify(payload),
-      success: function (res) {
-        resetBtn(btn);
-        if (res.success) {
-          showToast(res.data.message || 'Transaksi berhasil!', 'success');
-
-          // Add to session log activity UI
-          logs.unshift({
-            type: res.data.type,
-            barang: res.data.local_barang_nama,
-            qty: res.data.qty,
-            oldQty: res.data.old_qty,
-            newQty: res.data.new_qty,
-            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-          });
-          currentPage = 1;
-          renderLogs();
-
-          // Update option data-qty locally in dropdown
-          var $opt = $('#local_barang_id').find('option[value="' + localBarangId + '"]');
-          $opt.data('qty', res.data.new_qty);
-          var text = $opt.text().replace(/Stok: -?\d+/, 'Stok: ' + res.data.new_qty);
-          $opt.text(text);
-          $('#local_barang_id').trigger('change');
-
-          // Reset qty
-          $('#qty').val(1);
-        } else {
-          showToast(res.message || 'Gagal memproses transaksi', 'danger');
-        }
-      },
-      error: function (xhr) {
-        resetBtn(btn);
-        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan sistem';
-        showToast(msg, 'danger');
-      }
     });
   });
 
-  function renderLogs() {
-    $('#logCountBadge').text(logs.length + ' Data');
-    
-    if (logs.length === 0) {
-      $('#transferLogTbody').html('<tr><td colspan="6" class="text-center text-muted py-4">Belum ada aktivitas transfer stok pada sesi ini.</td></tr>');
-      $('#logPaginationWrapper').attr('style', 'display: none !important;');
-      return;
-    }
-
-    $('#logPaginationWrapper').removeAttr('style');
-
-    var totalPages = Math.ceil(logs.length / pageSize);
-    if (currentPage > totalPages) currentPage = totalPages;
-    if (currentPage < 1) currentPage = 1;
-
-    var startIdx = (currentPage - 1) * pageSize;
-    var endIdx = Math.min(startIdx + pageSize, logs.length);
-    var pageLogs = logs.slice(startIdx, endIdx);
-
-    var html = '';
-    pageLogs.forEach(function (item, idx) {
-      var rowNum = startIdx + idx + 1;
-      var isTransfer = item.type === 'transfer';
-      var badgeCls = isTransfer ? 'bg-primary' : 'bg-success';
-      var label = isTransfer ? 'Kirim' : 'Minta';
-      var icon = isTransfer ? 'bi-box-arrow-up-right' : 'bi-box-arrow-in-down-left';
-
-      html += '<tr>' +
-        '<td>' + rowNum + '</td>' +
-        '<td class="font-monospace text-muted">' + item.time + '</td>' +
-        '<td><span class="badge ' + badgeCls + '"><i class="bi ' + icon + ' me-1"></i>' + label + '</span></td>' +
-        '<td class="fw-semibold">' + escapeHtml(item.barang) + '</td>' +
-        '<td class="text-center"><strong>' + item.qty + '</strong> Pcs</td>' +
-        '<td class="text-end text-nowrap"><span class="text-muted">' + item.oldQty + '</span> &rarr; <strong class="text-primary">' + item.newQty + '</strong></td>' +
-        '</tr>';
-    });
-    $('#transferLogTbody').html(html);
-
-    $('#logPaginationInfo').text('Menampilkan ' + (startIdx + 1) + '-' + endIdx + ' dari ' + logs.length + ' data');
-
-    // Build pagination links
-    var pagHtml = '';
-    pagHtml += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '">' +
-      '<a class="page-link" href="#" data-page="' + (currentPage - 1) + '">&laquo;</a></li>';
-
-    for (var p = 1; p <= totalPages; p++) {
-      pagHtml += '<li class="page-item ' + (p === currentPage ? 'active' : '') + '">' +
-        '<a class="page-link" href="#" data-page="' + p + '">' + p + '</a></li>';
-    }
-
-    pagHtml += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '">' +
-      '<a class="page-link" href="#" data-page="' + (currentPage + 1) + '">&raquo;</a></li>';
-
-    $('#logPagination').html(pagHtml);
+  if (hasInvalid) {
+    if (stockError) showToast(stockError, 'danger');
+    return;
   }
 
-  $(document).on('click', '#logPagination a', function (e) {
-    e.preventDefault();
-    var page = parseInt($(this).data('page'), 10);
-    if (page && page !== currentPage) {
-      currentPage = page;
-      renderLogs();
+  if (items.length === 0) {
+    showToast('Pilih barang dan jumlah transfer terlebih dahulu', 'warning');
+    return;
+  }
+
+  if (!setBtnLoading(btn)) return;
+
+  $.ajax({
+    url: '/transfer-stock/execute',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      type: type,
+      notes: notes,
+      items: items
+    }),
+    success: function (res) {
+      resetBtn(btn);
+      if (res.success) {
+        showToast(res.data.message || 'Transfer berhasil disimpan!', 'success');
+
+        if (res.data.results) {
+          res.data.results.forEach(function (r) {
+            updateBarangStock(r.local_barang_id, r.new_qty);
+          });
+        }
+
+        // Add to session logs
+        var logTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+        var logHtml = '<div class="border-bottom pb-2 mb-2">' +
+          '<div class="d-flex justify-content-between align-items-center">' +
+            '<span class="badge bg-primary">Transfer ke Cabang</span>' +
+            '<span class="text-muted font-monospace" style="font-size:0.75rem;">' + logTime + '</span>' +
+          '</div>' +
+          '<div class="fw-semibold mt-1">' + res.data.total_items + ' Barang (' + res.data.total_qty + ' Pcs)</div>' +
+          (notes ? ('<div class="text-muted fst-italic" style="font-size:0.75rem;">"' + escapeHtml(notes) + '"</div>') : '') +
+        '</div>';
+
+        if (sessionLogs.length === 0) {
+          $('#sessionLogs').empty();
+        }
+        sessionLogs.unshift(res.data);
+        $('#sessionLogs').prepend(logHtml);
+        $('#sessionCount').text(sessionLogs.length);
+
+        // Reset inputs
+        $('#notes').val('');
+        $('#itemList').empty();
+        itemIndex = 0;
+        addItem();
+        calcTotal();
+      } else {
+        showToast(res.message || 'Gagal menyimpan transfer', 'danger');
+      }
+    },
+    error: function (xhr) {
+      resetBtn(btn);
+      var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan sistem';
+      showToast(msg, 'danger');
+    }
+  });
+}
+
+$(function () {
+  loadExternalItems(function () {
+    if ($('.item-row').length === 0) {
+      addItem();
     }
   });
 });

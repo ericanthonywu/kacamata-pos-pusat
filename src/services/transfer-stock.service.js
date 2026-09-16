@@ -6,11 +6,17 @@ const barangRepo = require('../repositories/barang.repository');
  */
 
 exports.getExternalConfig = function () {
-  const url = process.env.EXTERNAL_STOCK_APP_URL || '';
-  const apiKey = process.env.EXTERNAL_STOCK_APP_KEY || '';
+  let rawUrl = process.env.CABANG_APP_URL || process.env.EXTERNAL_STOCK_APP_URL || 'http://localhost:8080';
+  rawUrl = rawUrl.trim().replace(/\/$/, '');
+  let apiUrl = rawUrl;
+  if (!apiUrl.includes('/api/stock-transfer')) {
+    apiUrl = apiUrl + '/api/stock-transfer';
+  }
+  const apiKey = process.env.CABANG_APP_KEY || process.env.EXTERNAL_STOCK_APP_KEY || '';
   return {
-    configured: Boolean(url),
-    url: url || 'http://localhost:4000/api/stock-transfer',
+    configured: Boolean(process.env.CABANG_APP_URL || process.env.EXTERNAL_STOCK_APP_URL),
+    url: apiUrl,
+    host: rawUrl.replace('/api/stock-transfer', ''),
     apiKey: apiKey ? '***' + apiKey.slice(-4) : '',
   };
 };
@@ -26,11 +32,11 @@ exports.getExternalItems = async function () {
     { id: 'EXT-004', nama_barang: 'Pembersih Lensa Spray 50ml (External)', category: 'Aksesoris', stock: 200 }
   ];
 
-  if (!process.env.EXTERNAL_STOCK_APP_URL) {
+  if (!process.env.EXTERNAL_STOCK_APP_URL && !process.env.CABANG_APP_URL) {
     return {
       items: placeholderItems,
       isPlaceholder: true,
-      message: 'Data item eksternal siap diproses.'
+      message: 'Data item cabang siap diproses.'
     };
   }
 
@@ -71,58 +77,186 @@ exports.getExternalItems = async function () {
   }
 };
 
+async function pushTransferToBranch(config, payload) {
+  if (!config.url) return { ok: false, message: 'URL cabang belum dikonfigurasi' };
+  try {
+    const httpModule = config.url.startsWith('https') ? require('https') : require('http');
+    const endpoint = config.url.replace(/\/$/, '') + '/receive';
+    const parsedUrl = new URL(endpoint);
+    const postData = JSON.stringify(payload);
+
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+      path: parsedUrl.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        ...(config.apiKey ? { 'X-API-Key': config.apiKey } : {})
+      },
+      timeout: 3000
+    };
+
+    return await new Promise((resolve) => {
+      const req = httpModule.request(options, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          try {
+            resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, data: JSON.parse(body) });
+          } catch (e) {
+            resolve({ ok: false, message: 'Respon cabang tidak valid' });
+          }
+        });
+      });
+      req.on('error', (err) => resolve({ ok: false, error: err.message }));
+      req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'Timeout koneksi cabang' }); });
+      req.write(postData);
+      req.end();
+    });
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 exports.executeTransfer = async function (data) {
-  const type = data.type; // 'transfer' or 'request'
-  const localBarangId = parseInt(data.local_barang_id, 10);
-  const externalBarangId = data.external_barang_id;
-  const qty = parseInt(data.qty, 10);
+  const batchType = 'transfer'; // Strictly Kirim Stok (Transfer Out) from Pusat to Cabang
+  let rawItems = [];
 
-  if (!type || (type !== 'transfer' && type !== 'request')) {
-    throw Object.assign(new Error('Tipe transaksi harus "transfer" (kirim) atau "request" (minta)'), { status: 400 });
+  if (Array.isArray(data.items) && data.items.length > 0) {
+    rawItems = data.items;
+  } else if (data.local_barang_id) {
+    rawItems = [{
+      type: 'transfer',
+      local_barang_id: data.local_barang_id,
+      external_barang_id: data.external_barang_id,
+      external_barang_nama: data.external_barang_nama,
+      qty: data.qty
+    }];
+  } else {
+    throw Object.assign(new Error('Daftar barang transfer tidak boleh kosong'), { status: 400 });
   }
 
-  if (!localBarangId || isNaN(localBarangId)) {
-    throw Object.assign(new Error('Pilih barang cabang ini yang valid'), { status: 400 });
-  }
+  // Pre-validate all items before starting transaction
+  const validatedItems = [];
+  for (let i = 0; i < rawItems.length; i++) {
+    const item = rawItems[i];
+    const rowNum = i + 1;
 
-  if (!qty || isNaN(qty) || qty <= 0) {
-    throw Object.assign(new Error('Jumlah stock harus lebih besar dari 0'), { status: 400 });
-  }
-
-  if (!externalBarangId) {
-    throw Object.assign(new Error('Pilih item dari aplikasi eksternal'), { status: 400 });
-  }
-
-  return db.transaction(async function (trx) {
-    const barangLokal = await barangRepo.findById(localBarangId);
-    if (!barangLokal) {
-      throw Object.assign(new Error('Barang cabang ini tidak ditemukan'), { status: 404 });
+    const localBarangId = parseInt(item.local_barang_id, 10);
+    if (!localBarangId || isNaN(localBarangId)) {
+      throw Object.assign(new Error(`Item #${rowNum}: Pilih barang pusat yang valid`), { status: 400 });
     }
 
-    if (type === 'transfer') {
-      if (barangLokal.qty < qty) {
+    const qty = parseInt(item.qty, 10);
+    if (!qty || isNaN(qty) || qty <= 0) {
+      throw Object.assign(new Error(`Item #${rowNum}: Jumlah stok harus lebih besar dari 0`), { status: 400 });
+    }
+
+    const externalBarangId = item.external_barang_id;
+    if (!externalBarangId) {
+      throw Object.assign(new Error(`Item #${rowNum}: Pilih item cabang tujuan`), { status: 400 });
+    }
+
+    validatedItems.push({
+      type: 'transfer',
+      local_barang_id: localBarangId,
+      external_barang_id: externalBarangId,
+      external_barang_nama: item.external_barang_nama || externalBarangId,
+      qty: qty,
+      row_num: rowNum
+    });
+  }
+
+  const txResult = await db.transaction(async function (trx) {
+    // Track current stock during batch execution
+    const stockTracker = {};
+    const results = [];
+
+    // 1. Verify all items exist and have sufficient stock before making changes
+    for (const item of validatedItems) {
+      if (!stockTracker[item.local_barang_id]) {
+        const barang = await barangRepo.findById(item.local_barang_id, trx);
+        if (!barang) {
+          throw Object.assign(new Error(`Item #${item.row_num}: Barang pusat (ID ${item.local_barang_id}) tidak ditemukan`), { status: 404 });
+        }
+        stockTracker[item.local_barang_id] = {
+          barang: barang,
+          initialQty: barang.qty,
+          currentQty: barang.qty
+        };
+      }
+
+      const available = stockTracker[item.local_barang_id].currentQty;
+      if (available < item.qty) {
+        const bName = stockTracker[item.local_barang_id].barang.nama_barang;
         throw Object.assign(
-          new Error('Stok barang cabang ini tidak mencukupi. Stok saat ini: ' + barangLokal.qty + ', diminta: ' + qty),
+          new Error(`Stok barang "${bName}" di pusat tidak mencukupi. Sisa stok tersedia: ${available}, total diminta: ${item.qty}`),
           { status: 400 }
         );
       }
-      await barangRepo.decrementQty(localBarangId, qty, trx);
-    } else if (type === 'request') {
-      await barangRepo.incrementQty(localBarangId, qty, trx);
+      stockTracker[item.local_barang_id].currentQty -= item.qty;
     }
 
-    const updatedBarang = await barangRepo.findById(localBarangId);
+    // 2. Apply stock decrement in Pusat database
+    for (const item of validatedItems) {
+      await barangRepo.decrementQty(item.local_barang_id, item.qty, trx);
 
-    const actionText = type === 'transfer' ? 'dikirim ke' : 'diminta dari';
+      const tracker = stockTracker[item.local_barang_id];
+      results.push({
+        type: 'transfer',
+        local_barang_id: item.local_barang_id,
+        local_barang_nama: tracker.barang.nama_barang,
+        barcode_id: tracker.barang.barcode_id,
+        external_barang_id: item.external_barang_id,
+        external_barang_nama: item.external_barang_nama,
+        qty: item.qty,
+        old_qty: tracker.initialQty,
+        new_qty: tracker.currentQty
+      });
+    }
+
+    const totalQty = results.reduce((sum, r) => sum + r.qty, 0);
+
     return {
-      type: type,
-      local_barang_id: localBarangId,
-      local_barang_nama: barangLokal.nama_barang,
-      external_barang_id: externalBarangId,
-      qty: qty,
-      old_qty: barangLokal.qty,
-      new_qty: updatedBarang.qty,
-      message: 'Berhasil ' + (type === 'transfer' ? 'transfer' : 'request') + ' stock! ' + qty + ' pcs ' + barangLokal.nama_barang + ' telah ' + actionText + ' aplikasi eksternal.'
+      type: 'transfer',
+      notes: data.notes || '',
+      total_items: results.length,
+      total_qty: totalQty,
+      results: results,
+      local_barang_id: results[0].local_barang_id,
+      local_barang_nama: results[0].local_barang_nama,
+      external_barang_id: results[0].external_barang_id,
+      qty: results.length === 1 ? results[0].qty : totalQty,
+      old_qty: results[0].old_qty,
+      new_qty: results[0].new_qty,
+      message: results.length === 1
+        ? `Berhasil transfer stok! ${results[0].qty} pcs ${results[0].local_barang_nama} telah dikirim ke cabang.`
+        : `Berhasil transfer ${results.length} barang (total ${totalQty} pcs) ke cabang!`
     };
   });
+
+  // Attempt to notify branch app if configured
+  const config = exports.getExternalConfig();
+  const pushRes = await pushTransferToBranch(config, {
+    notes: data.notes || '',
+    source: 'Optik Sentral Pusat',
+    items: txResult.results.map(r => ({
+      external_barang_id: r.external_barang_id,
+      local_barang_id: r.local_barang_id,
+      nama_barang: r.local_barang_nama,
+      barcode_id: r.barcode_id,
+      qty: r.qty
+    }))
+  });
+
+  if (pushRes.ok) {
+    txResult.branch_synced = true;
+  } else {
+    txResult.branch_synced = false;
+    txResult.branch_note = pushRes.error || pushRes.message || 'Cabang sedang offline';
+  }
+
+  return txResult;
 };

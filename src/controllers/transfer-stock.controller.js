@@ -1,10 +1,10 @@
 const transferStockService = require('../services/transfer-stock.service');
-const barangRepo = require('../repositories/barang.repository');
+const barangService = require('../services/barang.service');
 const { ok, fail } = require('../utils/response');
 
 exports.index = async function (req, res, next) {
   try {
-    const barangList = await barangRepo.findAll();
+    const barangList = await barangService.getAll();
     const externalConfig = transferStockService.getExternalConfig();
     res.render('transfer-stock/index', {
       title: 'Transfer Stock',

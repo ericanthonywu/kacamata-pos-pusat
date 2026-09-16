@@ -1,13 +1,21 @@
-exports.up = function(knex) {
-  return knex.schema.alterTable('barang', function(table) {
-    table.dropColumn('axis_l');
-    table.dropColumn('axis_r');
-  });
+exports.up = async function(knex) {
+  const hasAxisL = await knex.schema.hasColumn('barang', 'axis_l');
+  const hasAxisR = await knex.schema.hasColumn('barang', 'axis_r');
+  if (hasAxisL || hasAxisR) {
+    await knex.schema.alterTable('barang', function(table) {
+      if (hasAxisL) table.dropColumn('axis_l');
+      if (hasAxisR) table.dropColumn('axis_r');
+    });
+  }
 };
 
-exports.down = function(knex) {
-  return knex.schema.alterTable('barang', function(table) {
-    table.string('axis_l', 20);
-    table.string('axis_r', 20);
-  });
+exports.down = async function(knex) {
+  const hasAxisL = await knex.schema.hasColumn('barang', 'axis_l');
+  const hasAxisR = await knex.schema.hasColumn('barang', 'axis_r');
+  if (!hasAxisL || !hasAxisR) {
+    await knex.schema.alterTable('barang', function(table) {
+      if (!hasAxisL) table.string('axis_l', 20);
+      if (!hasAxisR) table.string('axis_r', 20);
+    });
+  }
 };
