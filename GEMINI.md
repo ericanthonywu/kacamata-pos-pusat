@@ -1,7 +1,7 @@
 # Kacamata POS — Project Context & Coding Rules
 
 > **Optical shop (toko kacamata) Point-of-Sale admin panel.**
-> Brand name shown in UI: **Optik**
+> Brand name shown in UI: **Optik Sentral Pontianak**
 
 ---
 
