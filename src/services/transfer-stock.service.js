@@ -62,7 +62,20 @@ exports.getExternalItems = async function () {
       });
     });
 
-    const items = (response && response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let items = [];
+    if (response) {
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          items = response.data;
+        } else if (response.data.items && Array.isArray(response.data.items)) {
+          items = response.data.items;
+        }
+      } else if (Array.isArray(response)) {
+        items = response;
+      } else if (response.items && Array.isArray(response.items)) {
+        items = response.items;
+      }
+    }
     return {
       items: items,
       isPlaceholder: false,

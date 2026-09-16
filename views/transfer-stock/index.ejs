@@ -114,7 +114,11 @@ function getLocalOptionsHtml() {
 
 function getExternalOptionsHtml() {
   var html = '<option value="">-- Pilih Item Mitra --</option>';
+  if (!Array.isArray(externalItems)) {
+    return html;
+  }
   externalItems.forEach(function (item) {
+    if (!item) return;
     html += '<option value="' + escapeHtml(item.id) + '">' +
       escapeHtml(item.nama_barang) + ' (' + escapeHtml(item.category || 'Ext') + ') - Stok: ' + (item.stock || 0) +
       '</option>';
@@ -128,22 +132,29 @@ function loadExternalItems(callback) {
     url: '/transfer-stock/external-items',
     method: 'GET',
     success: function (res) {
-      if (res.success && res.data) {
-        externalItems = res.data.items || [];
-        externalLoaded = true;
-        $('#mitraStatusText').html('<span class="text-success fw-semibold">Terhubung (' + externalItems.length + ' item)</span>');
+      var raw = (res && res.data) ? (res.data.items !== undefined ? res.data.items : res.data) : [];
+      if (raw && !Array.isArray(raw) && Array.isArray(raw.items)) {
+        raw = raw.items;
+      }
+      externalItems = Array.isArray(raw) ? raw : [];
+      externalLoaded = true;
 
-        // Update any existing external dropdowns
-        $('.item-external').each(function () {
-          var curVal = $(this).val();
-          $(this).html(getExternalOptionsHtml()).val(curVal).trigger('change');
-        });
+      if (res && res.success) {
+        $('#mitraStatusText').html('<span class="text-success fw-semibold">Terhubung (' + externalItems.length + ' item)</span>');
       } else {
         $('#mitraStatusText').html('<span class="text-danger">Gagal</span>');
       }
+
+      // Update any existing external dropdowns
+      $('.item-external').each(function () {
+        var curVal = $(this).val();
+        $(this).html(getExternalOptionsHtml()).val(curVal).trigger('change');
+      });
+
       if (callback) callback();
     },
     error: function () {
+      externalItems = [];
       $('#mitraStatusText').html('<span class="text-danger">Gagal terhubung</span>');
       if (callback) callback();
     }
