@@ -77,6 +77,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root redirect to PREFIX (for localhost or direct port access)
+app.get('/', (req, res) => {
+  return res.redirect(PREFIX + '/');
+});
+
 // Routes mounted at PREFIX and /
 app.use(PREFIX, routes);
 app.use('/', routes);
