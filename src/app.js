@@ -77,9 +77,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Auto-redirect root to PREFIX (e.g. localhost:3000/ -> localhost:3000/pontianak)
-app.get('/', (req, res) => res.redirect(PREFIX));
-
 // Routes mounted at PREFIX and /
 app.use(PREFIX, routes);
 app.use('/', routes);
