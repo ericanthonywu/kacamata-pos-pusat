@@ -28,6 +28,16 @@ app.use(flash());
 // Global template vars & Dynamic Base Path / Redirection
 app.use((req, res, next) => {
   const host = (req.headers.host || '').toLowerCase();
+
+  // If accessed directly via server public IP, redirect to HTTPS domain with /pontianak prefix
+  if (host.includes('187.77.121.132')) {
+    const targetPath = req.originalUrl || req.url || '/';
+    const cleanPath = targetPath.startsWith('/pontianak')
+      ? targetPath
+      : ('/pontianak' + (targetPath === '/' ? '/' : (targetPath.startsWith('/') ? targetPath : '/' + targetPath)));
+    return res.redirect(301, 'https://srv1743851.hstgr.cloud' + cleanPath);
+  }
+
   const isLocal = host.includes('localhost') ||
                   host.includes('127.0.0.1') ||
                   host.startsWith('192.168.') ||
