@@ -3,12 +3,12 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h5 class="mb-0">Transfer Stok ke Cabang</h5>
-    <small class="text-muted">Kirim stok barang langsung dari Pusat ke Cabang (kacamata-pos)</small>
+    <h5 class="mb-0">Transfer Stok ke Cabang Ketapang</h5>
+    <small class="text-muted">Kirim stok barang langsung dari Gudang KL ke Cabang Ketapang</small>
   </div>
   <div class="small text-muted" id="mitraStatus">
-    Cabang: <span id="mitraStatusText">Memuat...</span>
-    <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-decoration-none" onclick="loadExternalItems()" title="Muat ulang data cabang">
+    Cabang Ketapang: <span id="mitraStatusText">Memuat...</span>
+    <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-decoration-none" onclick="loadExternalItems()" title="Muat ulang data Cabang Ketapang">
       <i class="bi bi-arrow-clockwise"></i>
     </button>
   </div>
@@ -22,8 +22,8 @@
 
       <div class="mb-3">
         <label class="form-label small">Tujuan Transfer</label>
-        <input type="text" class="form-control form-control-sm fw-semibold bg-body-tertiary" value="Cabang (kacamata-pos)" readonly>
-        <div class="form-text small">Stok di Pusat akan berkurang dan dikirim ke Cabang.</div>
+        <input type="text" class="form-control form-control-sm fw-semibold bg-body-tertiary" value="Cabang Ketapang" readonly>
+        <div class="form-text small">Stok di Gudang KL akan berkurang dan dikirim ke Cabang Ketapang.</div>
       </div>
 
       <div class="mb-3">
@@ -77,7 +77,7 @@
       </div>
       <div class="d-flex gap-2 mt-3">
         <button class="btn btn-primary flex-fill" id="btnSimpan" onclick="saveTransfer(this)">
-          <i class="bi bi-send-check me-1"></i> Transfer ke Cabang
+          <i class="bi bi-send-check me-1"></i> Transfer ke Cabang Ketapang
         </button>
       </div>
     </div>
@@ -101,7 +101,7 @@ var itemIndex = 0;
 var sessionLogs = [];
 
 function getLocalOptionsHtml() {
-  var html = '<option value="">-- Pilih Barang --</option>';
+  var html = '<option value="">-- Pilih Barang di Gudang KL --</option>';
   Object.keys(barangMap).forEach(function (id) {
     var b = barangMap[id];
     var code = b.barcode_id ? (' (' + b.barcode_id + ')') : '';
@@ -113,7 +113,7 @@ function getLocalOptionsHtml() {
 }
 
 function getExternalOptionsHtml() {
-  var html = '<option value="">-- Pilih Item Mitra --</option>';
+  var html = '<option value="">-- Pilih Barang di Cabang Ketapang --</option>';
   if (!Array.isArray(externalItems)) {
     return html;
   }
@@ -168,14 +168,14 @@ function addItem() {
   var html = '<div class="border rounded p-2 mb-2 item-row" data-idx="' + idx + '">' +
     '<div class="row g-2 align-items-start">' +
       '<div class="col-md-5">' +
-        '<label class="form-label small mb-1">Barang (Cabang Ini) <span class="text-danger">*</span></label>' +
+        '<label class="form-label small mb-1">Barang (Gudang KL) <span class="text-danger">*</span></label>' +
         '<select class="form-select form-select-sm item-local" data-idx="' + idx + '">' +
           getLocalOptionsHtml() +
         '</select>' +
         '<div class="small mt-1 stock-info" data-idx="' + idx + '" style="font-size:0.75rem;"></div>' +
       '</div>' +
       '<div class="col-md-4">' +
-        '<label class="form-label small mb-1">Item Cabang Mitra <span class="text-danger">*</span></label>' +
+        '<label class="form-label small mb-1">Barang (Cabang Ketapang) <span class="text-danger">*</span></label>' +
         '<select class="form-select form-select-sm item-external" data-idx="' + idx + '">' +
           getExternalOptionsHtml() +
         '</select>' +
@@ -200,7 +200,7 @@ function addItem() {
 
   $local.select2({
     theme: 'bootstrap-5',
-    placeholder: '-- Pilih Barang --',
+    placeholder: '-- Pilih Barang di Gudang KL --',
     allowClear: true
   }).on('select2:select', function () {
     updateStockInfo(idx);
@@ -212,7 +212,7 @@ function addItem() {
 
   $ext.select2({
     theme: 'bootstrap-5',
-    placeholder: '-- Pilih Item Mitra --',
+    placeholder: '-- Pilih Barang di Cabang Ketapang --',
     allowClear: true
   });
 
@@ -299,12 +299,12 @@ function saveTransfer(btn) {
     }
 
     if (!localId) {
-      showToast('Pilih barang cabang ini untuk semua item', 'warning');
+      showToast('Pilih barang di Gudang KL untuk semua item', 'warning');
       hasInvalid = true;
       return false;
     }
     if (!extId) {
-      showToast('Pilih item cabang mitra untuk semua item', 'warning');
+      showToast('Pilih barang di Cabang Ketapang untuk semua item', 'warning');
       hasInvalid = true;
       return false;
     }
@@ -366,7 +366,7 @@ function saveTransfer(btn) {
 
         var logHtml = '<div class="border-bottom pb-2 mb-2">' +
           '<div class="d-flex justify-content-between align-items-center">' +
-            '<span class="badge bg-primary">Transfer ke Cabang</span>' +
+            '<span class="badge bg-primary">Gudang KL → Cabang Ketapang</span>' +
             '<span class="text-muted font-monospace" style="font-size:0.75rem;">' + logTime + '</span>' +
           '</div>' +
           '<div class="fw-semibold mt-1">' + res.data.total_items + ' Barang (' + res.data.total_qty + ' Pcs)</div>' +

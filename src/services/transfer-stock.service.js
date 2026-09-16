@@ -245,8 +245,8 @@ exports.executeTransfer = async function (data) {
       old_qty: results[0].old_qty,
       new_qty: results[0].new_qty,
       message: results.length === 1
-        ? `Berhasil transfer stok! ${results[0].qty} pcs ${results[0].local_barang_nama} telah dikirim ke cabang.`
-        : `Berhasil transfer ${results.length} barang (total ${totalQty} pcs) ke cabang!`
+        ? `Berhasil transfer stok! ${results[0].qty} pcs ${results[0].local_barang_nama} telah dikirim ke Cabang Ketapang.`
+        : `Berhasil transfer ${results.length} barang (total ${totalQty} pcs) ke Cabang Ketapang!`
     };
   });
 
@@ -254,7 +254,7 @@ exports.executeTransfer = async function (data) {
   const config = exports.getExternalConfig();
   const pushRes = await pushTransferToBranch(config, {
     notes: data.notes || '',
-    source: 'Optik Sentral Pusat',
+    source: 'Gudang KL',
     items: txResult.results.map(r => ({
       external_barang_id: r.external_barang_id,
       local_barang_id: r.local_barang_id,
@@ -268,7 +268,7 @@ exports.executeTransfer = async function (data) {
     txResult.branch_synced = true;
   } else {
     txResult.branch_synced = false;
-    txResult.branch_note = pushRes.error || pushRes.message || 'Cabang sedang offline';
+    txResult.branch_note = pushRes.error || pushRes.message || 'Cabang Ketapang sedang offline';
   }
 
   return txResult;
