@@ -1,0 +1,336 @@
+<%- include('../partials/top', { title, activePage }) %>
+
+<div class="row mb-4">
+  <div class="col-12 d-flex justify-content-between align-items-center">
+    <div>
+      <h4 class="mb-1"><i class="bi bi-arrow-left-right text-primary me-2"></i>Transfer Stock Inter-App</h4>
+      <p class="text-muted small mb-0">Transfer stok barang dari cabang ini ke aplikasi eksternal atau sebaliknya (Request Stock).</p>
+    </div>
+    <span class="badge <%= externalConfig.configured ? 'bg-success' : 'bg-warning text-dark' %> p-2">
+      <i class="bi bi-broadcast me-1"></i>
+      <%= externalConfig.configured ? 'External Connected' : 'Demo / Contract Placeholder Mode' %>
+    </span>
+  </div>
+</div>
+
+<!-- Configuration Notice Card -->
+<div class="card border-0 shadow-sm mb-4 bg-body-tertiary">
+  <div class="card-body p-3">
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-3">
+        <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3">
+          <i class="bi bi-gear-wide-connected fs-4"></i>
+        </div>
+        <div>
+          <div class="fw-semibold small">Konfigurasi Endpoint Eksternal</div>
+          <div class="text-muted small font-monospace">
+            Endpoint: <span id="externalUrlText"><%= externalConfig.url %></span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#configHelp">
+          <i class="bi bi-info-circle me-1"></i> Detail Kontrak API
+        </button>
+      </div>
+    </div>
+    <div class="collapse mt-3" id="configHelp">
+      <div class="border-top pt-3 text-muted small">
+        <p class="mb-1"><strong>Status Integrasi:</strong> Saat kontrak API eksternal sudah siap, sesuaikan environment variable berikut pada file <code>.env</code>:</p>
+        <pre class="bg-dark text-light p-2 rounded mb-1">EXTERNAL_STOCK_APP_URL=https://api.external-app.com/v1/stock
+EXTERNAL_STOCK_APP_KEY=your_api_key_here</pre>
+        <p class="mb-0 text-info"><i class="bi bi-check-circle me-1"></i>Saat ini form sudah dapat diuji coba secara simulasi (Transfer akan mengurangi stok cabang ini, Request akan menambah stok cabang ini).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Transfer Form Card -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-transparent fw-bold py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-send me-2 text-primary"></i>Form Transfer / Request Stock</span>
+      </div>
+      <div class="card-body p-4">
+        <form id="transferForm">
+          <!-- Action Mode Selector -->
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-uppercase text-muted mb-2">Tipe Transaksi</label>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <input type="radio" class="btn-check" name="type" id="typeTransfer" value="transfer" checked>
+                <label class="btn btn-outline-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2" for="typeTransfer">
+                  <i class="bi bi-box-arrow-up-right"></i>
+                  <div class="text-start">
+                    <div class="fw-bold">Kirim Stock (Transfer Out)</div>
+                    <div class="small text-muted" style="font-size:0.75rem;">Kurangi stok dari cabang ini</div>
+                  </div>
+                </label>
+              </div>
+              <div class="col-md-6">
+                <input type="radio" class="btn-check" name="type" id="typeRequest" value="request">
+                <label class="btn btn-outline-success w-100 py-2 d-flex align-items-center justify-content-center gap-2" for="typeRequest">
+                  <i class="bi bi-box-arrow-in-down-left"></i>
+                  <div class="text-start">
+                    <div class="fw-bold">Minta Stock (Request In)</div>
+                    <div class="small text-muted" style="font-size:0.75rem;">Tambah stok ke cabang ini</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- Dropdown 1: Choose item from local DB -->
+          <div class="mb-3">
+            <label for="local_barang_id" class="form-label small fw-bold">1. Pilih Barang dari Cabang Ini (POS Kita)</label>
+            <select class="form-select" id="local_barang_id" required>
+              <option value="">-- Pilih Barang --</option>
+              <% barangList.forEach(function(item) { %>
+                <option value="<%= item.id %>" data-qty="<%= item.qty %>">
+                  <%= item.nama_barang %> <%= item.barcode_id ? ('(' + item.barcode_id + ')') : '' %> - Stok: <%= item.qty %>
+                </option>
+              <% }); %>
+            </select>
+            <div class="form-text small" id="localStockInfo">Pilih barang cabang ini terlebih dahulu.</div>
+          </div>
+
+          <!-- Quantity Input -->
+          <div class="mb-3">
+            <label for="qty" class="form-label small fw-bold">2. Jumlah Stock (Qty)</label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="qty" min="1" value="1" required>
+              <span class="input-group-text">Pcs</span>
+            </div>
+            <div class="form-text small">Masukkan jumlah unit stock yang akan ditransfer atau diminta.</div>
+          </div>
+
+          <!-- Dropdown 2: Choose item from external endpoint -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label for="external_barang_id" class="form-label small fw-bold mb-0">3. Pilih Item dari Eksternal App</label>
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnReloadExternal">
+                <i class="bi bi-arrow-clockwise me-1"></i>Reload List
+              </button>
+            </div>
+            <select class="form-select" id="external_barang_id" required>
+              <option value="">-- Memuat data item eksternal... --</option>
+            </select>
+            <div class="form-text small" id="externalStatusInfo">Item dari endpoint eksternal.</div>
+          </div>
+
+          <!-- Notice summary alert -->
+          <div class="alert alert-info d-flex align-items-center gap-2 mb-4" id="transferSummaryAlert">
+            <i class="bi bi-info-circle-fill fs-5"></i>
+            <span class="small" id="summaryText">Transaksi ini akan mengurangi stok dari cabang ini.</span>
+          </div>
+
+          <!-- Action Button -->
+          <button type="button" class="btn btn-primary w-100 py-2 fw-semibold" id="btnSubmitTransfer">
+            <i class="bi bi-check-circle me-1"></i> Eksekusi Transfer Stock
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info & History Panel Card -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-transparent fw-bold py-3">
+        <i class="bi bi-info-square me-2 text-info"></i>Petunjuk Fitur
+      </div>
+      <div class="card-body p-3 small text-muted">
+        <ul class="mb-0 ps-3">
+          <li class="mb-2"><strong>Kirim Stock:</strong> Mengirim barang dari cabang ini ke app/toko mitra. Stok cabang ini akan otomatis berkurang.</li>
+          <li class="mb-2"><strong>Minta Stock:</strong> Meminta barang dari app/toko mitra ke cabang ini. Tidak memerlukan konfirmasi, stok cabang ini akan otomatis bertambah.</li>
+          <li><strong>Endpoint Ready:</strong> Jika kontrak endpoint siap, sistem akan otomatis mengirim HTTP request ke URL target.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Recent Transfer Logs Card -->
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-transparent fw-bold py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2 text-secondary"></i>Aktivitas Sesi Ini</span>
+        <span class="badge bg-secondary" id="logCountBadge">0</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush" id="transferLogContainer">
+          <div class="list-group-item text-center text-muted py-4 small">
+            Belum ada aktivitas transfer stock pada sesi ini.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+$(function () {
+  var logs = [];
+
+  function loadExternalItems() {
+    $('#external_barang_id').html('<option value="">-- Memuat data item eksternal... --</option>');
+    $.ajax({
+      url: '/transfer-stock/external-items',
+      method: 'GET',
+      success: function (res) {
+        if (res.success && res.data) {
+          var items = res.data.items || [];
+          var optionsHtml = '<option value="">-- Pilih Item Eksternal --</option>';
+          items.forEach(function (item) {
+            optionsHtml += '<option value="' + item.id + '">' +
+              item.nama_barang + ' (' + (item.category || 'Ext') + ') - Stok: ' + (item.stock || 0) +
+              '</option>';
+          });
+          $('#external_barang_id').html(optionsHtml);
+          $('#externalStatusInfo').text(res.data.message || 'Item eksternal siap diproses.');
+        } else {
+          $('#external_barang_id').html('<option value="">Gagal memuat item eksternal</option>');
+        }
+      },
+      error: function () {
+        $('#external_barang_id').html('<option value="">Error memuat item eksternal</option>');
+      }
+    });
+  }
+
+  loadExternalItems();
+
+  $('#btnReloadExternal').on('click', function () {
+    loadExternalItems();
+  });
+
+  // Toggle mode text summary
+  $('input[name="type"]').on('change', function () {
+    var type = $(this).val();
+    if (type === 'transfer') {
+      $('#summaryText').text('Transaksi ini akan mengurangi stok dari cabang ini (Kirim Stock).');
+      $('#transferSummaryAlert').removeClass('alert-success').addClass('alert-info');
+      $('#btnSubmitTransfer').removeClass('btn-success').addClass('btn-primary')
+        .html('<i class="bi bi-check-circle me-1"></i> Eksekusi Kirim Stock');
+    } else {
+      $('#summaryText').text('Transaksi ini akan menambah stok ke cabang ini (Request Stock - tanpa konfirmasi).');
+      $('#transferSummaryAlert').removeClass('alert-info').addClass('alert-success');
+      $('#btnSubmitTransfer').removeClass('btn-primary').addClass('btn-success')
+        .html('<i class="bi bi-box-arrow-in-down-left me-1"></i> Eksekusi Request Stock');
+    }
+  });
+
+  // Local item stock notice
+  $('#local_barang_id').on('change', function () {
+    var selected = $(this).find('option:selected');
+    var qty = selected.data('qty');
+    if (qty !== undefined) {
+      $('#localStockInfo').html('Sisa stok saat ini di cabang ini: <strong class="' + (qty <= 0 ? 'text-danger' : 'text-success') + '">' + qty + ' pcs</strong>');
+    } else {
+      $('#localStockInfo').text('Pilih barang cabang ini terlebih dahulu.');
+    }
+  });
+
+  // Form Submission
+  $('#btnSubmitTransfer').on('click', function () {
+    var btn = this;
+    var type = $('input[name="type"]:checked').val();
+    var localBarangId = $('#local_barang_id').val();
+    var externalBarangId = $('#external_barang_id').val();
+    var qty = parseInt($('#qty').val(), 10);
+
+    if (!localBarangId) {
+      showToast('Silakan pilih barang cabang ini', 'warning');
+      return;
+    }
+    if (!qty || qty <= 0) {
+      showToast('Masukkan jumlah stok yang valid (> 0)', 'warning');
+      return;
+    }
+    if (!externalBarangId) {
+      showToast('Silakan pilih item dari aplikasi eksternal', 'warning');
+      return;
+    }
+
+    if (!setBtnLoading(btn)) return;
+
+    var payload = {
+      type: type,
+      local_barang_id: localBarangId,
+      external_barang_id: externalBarangId,
+      qty: qty
+    };
+
+    $.ajax({
+      url: '/transfer-stock/execute',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify(payload),
+      success: function (res) {
+        resetBtn(btn);
+        if (res.success) {
+          showToast(res.data.message || 'Transaksi berhasil!', 'success');
+
+          // Add to session log activity UI
+          logs.unshift({
+            type: res.data.type,
+            barang: res.data.local_barang_nama,
+            qty: res.data.qty,
+            oldQty: res.data.old_qty,
+            newQty: res.data.new_qty,
+            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          });
+          renderLogs();
+
+          // Update option data-qty locally in dropdown
+          var $opt = $('#local_barang_id').find('option[value="' + localBarangId + '"]');
+          $opt.data('qty', res.data.new_qty);
+          var text = $opt.text().replace(/Stok: -?\d+/, 'Stok: ' + res.data.new_qty);
+          $opt.text(text);
+          $('#local_barang_id').trigger('change');
+
+          // Reset qty
+          $('#qty').val(1);
+        } else {
+          showToast(res.message || 'Gagal memproses transaksi', 'danger');
+        }
+      },
+      error: function (xhr) {
+        resetBtn(btn);
+        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan sistem';
+        showToast(msg, 'danger');
+      }
+    });
+  });
+
+  function renderLogs() {
+    $('#logCountBadge').text(logs.length);
+    if (logs.length === 0) {
+      $('#transferLogContainer').html('<div class="list-group-item text-center text-muted py-4 small">Belum ada aktivitas transfer stock pada sesi ini.</div>');
+      return;
+    }
+    var html = '';
+    logs.forEach(function (item) {
+      var isTransfer = item.type === 'transfer';
+      var badgeCls = isTransfer ? 'bg-primary' : 'bg-success';
+      var label = isTransfer ? 'Transfer Out' : 'Request In';
+      var icon = isTransfer ? 'bi-box-arrow-up-right' : 'bi-box-arrow-in-down-left';
+
+      html += '<div class="list-group-item p-3">' +
+        '<div class="d-flex justify-content-between align-items-center mb-1">' +
+        '<span class="badge ' + badgeCls + ' d-flex align-items-center gap-1"><i class="bi ' + icon + '"></i> ' + label + '</span>' +
+        '<span class="small text-muted font-monospace">' + item.time + '</span>' +
+        '</div>' +
+        '<div class="fw-semibold small text-truncate">' + escapeHtml(item.barang) + '</div>' +
+        '<div class="small text-muted d-flex justify-content-between mt-1">' +
+        '<span>Jumlah: <strong>' + item.qty + ' pcs</strong></span>' +
+        '<span>Stok: ' + item.oldQty + ' &rarr; <strong>' + item.newQty + '</strong></span>' +
+        '</div>' +
+        '</div>';
+    });
+    $('#transferLogContainer').html(html);
+  }
+});
+</script>
+
+<%- include('../partials/bottom') %>
