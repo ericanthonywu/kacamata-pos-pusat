@@ -106,7 +106,7 @@
   </div>
   <% } %>
 
-  <% if (bp) { %>
+  <% if (currentUser && currentUser.hak_akses === 'admin') { %>
   <div class="sidebar-section">
     <div class="sidebar-label">Akses Cabang Lain</div>
     <% if (bp === '/pontianak') { %>

@@ -1,39 +1,19 @@
-/* app.js — Shared jQuery utilities & Dynamic Base Path / Redirection */
+/* app.js — Shared jQuery utilities & Base Path / Redirection */
 
-// Dynamic Prefix Detection based on window.location.host and pathname
+// Prefix & Redirection helpers
 (function () {
-  function detectAppPrefix() {
-    var host = (window.location.host || '').toLowerCase();
-    var isLocalhost = host.indexOf('localhost') !== -1 ||
-                      host.indexOf('127.0.0.1') !== -1 ||
-                      host.startsWith('192.168.') ||
-                      host.startsWith('10.') ||
-                      host.startsWith('172.');
-
-    // If running on localhost / store computer, default to NO prefix
-    if (isLocalhost && !window.location.pathname.startsWith('/pontianak') && !window.location.pathname.startsWith('/ketapang')) {
-      return '';
-    }
-
-    // Injected by server template
-    if (typeof window.__APP_PREFIX__ === 'string') {
+  function getPrefix() {
+    if (typeof window.__APP_PREFIX__ === 'string' && window.__APP_PREFIX__) {
       return window.__APP_PREFIX__;
     }
-
-    // Fallback: check current pathname
-    if (window.location.pathname.startsWith('/pontianak')) {
-      return '/pontianak';
-    }
-    if (window.location.pathname.startsWith('/ketapang')) {
-      return '/ketapang';
-    }
+    if (window.location.pathname.startsWith('/pontianak')) return '/pontianak';
+    if (window.location.pathname.startsWith('/ketapang')) return '/ketapang';
     return '';
   }
 
-  window.getAppPrefix = detectAppPrefix;
-  window.__APP_PREFIX__ = detectAppPrefix();
+  window.getAppPrefix = getPrefix;
+  window.__APP_PREFIX__ = getPrefix();
 
-  // Helper to construct dynamic URLs
   window.appUrl = function (path) {
     var prefix = window.getAppPrefix();
     if (!path) return prefix || '/';
@@ -43,13 +23,12 @@
     return prefix + path;
   };
 
-  // Helper for dynamic redirection
   window.appRedirect = function (path) {
     window.location.href = window.appUrl(path);
   };
 })();
 
-// jQuery AJAX prefilter — automatically prefixes all relative AJAX requests
+// jQuery AJAX prefilter — ensures relative AJAX URLs work with prefix
 if (typeof $ !== 'undefined' && $.ajaxPrefilter) {
   $.ajaxPrefilter(function (options) {
     var prefix = window.getAppPrefix ? window.getAppPrefix() : (window.__APP_PREFIX__ || '');
@@ -60,30 +39,6 @@ if (typeof $ !== 'undefined' && $.ajaxPrefilter) {
     }
   });
 }
-
-// Intercept root-relative link clicks and form submissions
-$(function () {
-  var prefix = window.getAppPrefix ? window.getAppPrefix() : (window.__APP_PREFIX__ || '');
-  if (prefix) {
-    // Intercept clicks on links that start with '/'
-    $(document).on('click', 'a[href^="/"]', function (e) {
-      if (e.ctrlKey || e.metaKey || e.shiftKey || e.which === 2) return;
-      var href = $(this).attr('href');
-      if (href && !href.startsWith('//') && !href.startsWith(prefix + '/') && href !== prefix) {
-        e.preventDefault();
-        window.location.href = prefix + href;
-      }
-    });
-
-    // Intercept form submissions
-    $(document).on('submit', 'form[action^="/"]', function () {
-      var action = $(this).attr('action');
-      if (action && !action.startsWith('//') && !action.startsWith(prefix + '/') && action !== prefix) {
-        $(this).attr('action', prefix + action);
-      }
-    });
-  }
-});
 
 // DataTables Indonesian language
 var dtLanguageID = {
