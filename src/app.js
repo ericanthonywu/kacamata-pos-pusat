@@ -12,6 +12,8 @@ const routes = require('./routes/index.routes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
 // View engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
@@ -23,8 +25,54 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(sessionMiddleware);
 app.use(flash());
 
-// Global template vars
+// Global template vars & Dynamic Base Path / Redirection
 app.use((req, res, next) => {
+  const host = (req.headers.host || '').toLowerCase();
+  const isLocal = host.includes('localhost') ||
+                  host.includes('127.0.0.1') ||
+                  host.startsWith('192.168.') ||
+                  host.startsWith('10.') ||
+                  host.startsWith('172.');
+
+  let prefix = '';
+  if (!isLocal) {
+    prefix = req.headers['x-forwarded-prefix'] || process.env.APP_PREFIX || '';
+  }
+
+  if (prefix) {
+    if (!prefix.startsWith('/')) prefix = '/' + prefix;
+    if (prefix.endsWith('/')) prefix = prefix.slice(0, -1);
+  } else {
+    prefix = '';
+  }
+
+  req.basePath = prefix;
+  res.locals.basePath = prefix;
+
+  res.locals.appUrl = (p) => {
+    if (!p) return prefix || '/';
+    if (p.startsWith('http://') || p.startsWith('https://') || p.startsWith('//')) return p;
+    if (!p.startsWith('/')) p = '/' + p;
+    if (prefix && (p === prefix || p.startsWith(prefix + '/'))) return p;
+    return prefix + p;
+  };
+
+  const origRedirect = res.redirect.bind(res);
+  res.redirect = function (first, second) {
+    let status = 302;
+    let url = first;
+    if (typeof first === 'number') {
+      status = first;
+      url = second;
+    }
+    if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
+      if (req.basePath && !url.startsWith(req.basePath + '/') && url !== req.basePath) {
+        url = req.basePath + url;
+      }
+    }
+    return origRedirect(status, url);
+  };
+
   res.locals.currentUser = req.session.user || null;
   res.locals.success = req.flash('success')[0] || null;
   res.locals.error = req.flash('error')[0] || null;

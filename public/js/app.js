@@ -1,4 +1,89 @@
-/* app.js — Shared jQuery utilities */
+/* app.js — Shared jQuery utilities & Dynamic Base Path / Redirection */
+
+// Dynamic Prefix Detection based on window.location.host and pathname
+(function () {
+  function detectAppPrefix() {
+    var host = (window.location.host || '').toLowerCase();
+    var isLocalhost = host.indexOf('localhost') !== -1 ||
+                      host.indexOf('127.0.0.1') !== -1 ||
+                      host.startsWith('192.168.') ||
+                      host.startsWith('10.') ||
+                      host.startsWith('172.');
+
+    // If running on localhost / store computer, default to NO prefix
+    if (isLocalhost && !window.location.pathname.startsWith('/pontianak') && !window.location.pathname.startsWith('/ketapang')) {
+      return '';
+    }
+
+    // Injected by server template
+    if (typeof window.__APP_PREFIX__ === 'string') {
+      return window.__APP_PREFIX__;
+    }
+
+    // Fallback: check current pathname
+    if (window.location.pathname.startsWith('/pontianak')) {
+      return '/pontianak';
+    }
+    if (window.location.pathname.startsWith('/ketapang')) {
+      return '/ketapang';
+    }
+    return '';
+  }
+
+  window.getAppPrefix = detectAppPrefix;
+  window.__APP_PREFIX__ = detectAppPrefix();
+
+  // Helper to construct dynamic URLs
+  window.appUrl = function (path) {
+    var prefix = window.getAppPrefix();
+    if (!path) return prefix || '/';
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('//')) return path;
+    if (!path.startsWith('/')) path = '/' + path;
+    if (prefix && (path === prefix || path.startsWith(prefix + '/'))) return path;
+    return prefix + path;
+  };
+
+  // Helper for dynamic redirection
+  window.appRedirect = function (path) {
+    window.location.href = window.appUrl(path);
+  };
+})();
+
+// jQuery AJAX prefilter — automatically prefixes all relative AJAX requests
+if (typeof $ !== 'undefined' && $.ajaxPrefilter) {
+  $.ajaxPrefilter(function (options) {
+    var prefix = window.getAppPrefix ? window.getAppPrefix() : (window.__APP_PREFIX__ || '');
+    if (prefix && options.url && options.url.startsWith('/') && !options.url.startsWith('//')) {
+      if (!options.url.startsWith(prefix + '/') && options.url !== prefix) {
+        options.url = prefix + options.url;
+      }
+    }
+  });
+}
+
+// Intercept root-relative link clicks and form submissions
+$(function () {
+  var prefix = window.getAppPrefix ? window.getAppPrefix() : (window.__APP_PREFIX__ || '');
+  if (prefix) {
+    // Intercept clicks on links that start with '/'
+    $(document).on('click', 'a[href^="/"]', function (e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.which === 2) return;
+      var href = $(this).attr('href');
+      if (href && !href.startsWith('//') && !href.startsWith(prefix + '/') && href !== prefix) {
+        e.preventDefault();
+        window.location.href = prefix + href;
+      }
+    });
+
+    // Intercept form submissions
+    $(document).on('submit', 'form[action^="/"]', function () {
+      var action = $(this).attr('action');
+      if (action && !action.startsWith('//') && !action.startsWith(prefix + '/') && action !== prefix) {
+        $(this).attr('action', prefix + action);
+      }
+    });
+  }
+});
 
 // DataTables Indonesian language
 var dtLanguageID = {
