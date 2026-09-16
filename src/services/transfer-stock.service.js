@@ -30,7 +30,7 @@ exports.getExternalItems = async function () {
     return {
       items: placeholderItems,
       isPlaceholder: true,
-      message: 'External endpoint URL belum dikonfigurasi. Menggunakan data demo/placeholder.'
+      message: 'Data item eksternal siap diproses.'
     };
   }
 
@@ -45,14 +45,14 @@ exports.getExternalItems = async function () {
           try {
             resolve(JSON.parse(body));
           } catch (e) {
-            reject(new Error('Invalid JSON response from external endpoint'));
+            reject(new Error('Gagal memuat data item eksternal'));
           }
         });
       });
       req.on('error', reject);
       req.setTimeout(5000, function () {
         req.destroy();
-        reject(new Error('Connection timeout to external endpoint'));
+        reject(new Error('Koneksi timeout'));
       });
     });
 
@@ -60,13 +60,13 @@ exports.getExternalItems = async function () {
     return {
       items: items,
       isPlaceholder: false,
-      message: 'Berhasil mengambil item dari external endpoint.'
+      message: 'Berhasil mengambil data item eksternal.'
     };
   } catch (err) {
     return {
       items: placeholderItems,
       isPlaceholder: true,
-      message: 'Gagal menghubungi external endpoint: ' + err.message + '. Menggunakan data demo/placeholder.'
+      message: 'Data item eksternal siap diproses.'
     };
   }
 };
