@@ -27,8 +27,8 @@ exports.getExternalItems = async function () {
   // Standard fallback/placeholder external items list (for contract setup)
   const placeholderItems = [
     { id: 'EXT-001', nama_barang: 'Frame Kacamata Model A (External)', category: 'Frame', stock: 50 },
-    { id: 'EXT-002', nama_barang: 'Lensa Single Vision 1.56 (External)', category: 'Lensa', stock: 100 },
-    { id: 'EXT-003', nama_barang: 'Lensa Progressive Anti Radiasi (External)', category: 'Lensa', stock: 30 },
+    { id: 'EXT-002', nama_barang: 'Lensa Single Vision 1.56 (External)', category: 'Lensa', stock: 100, sph_r: '-2.00', cyl_r: '-0.50' },
+    { id: 'EXT-003', nama_barang: 'Lensa Progressive Anti Radiasi (External)', category: 'Lensa', stock: 30, sph_r: '+1.50', add_r: '+1.00' },
     { id: 'EXT-004', nama_barang: 'Pembersih Lensa Spray 50ml (External)', category: 'Aksesoris', stock: 200 }
   ];
 

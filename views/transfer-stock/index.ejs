@@ -91,6 +91,12 @@ var barangMap = {};
     id: <%= b.id %>,
     nama_barang: <%- JSON.stringify(b.nama_barang) %>,
     barcode_id: <%- JSON.stringify(b.barcode_id || '') %>,
+    sph_r: <%- JSON.stringify(b.sph_r || '') %>,
+    sph_l: <%- JSON.stringify(b.sph_l || '') %>,
+    cyl_r: <%- JSON.stringify(b.cyl_r || '') %>,
+    cyl_l: <%- JSON.stringify(b.cyl_l || '') %>,
+    add_r: <%- JSON.stringify(b.add_r || '') %>,
+    add_l: <%- JSON.stringify(b.add_l || '') %>,
     qty: <%= Number(b.qty || 0) %>
   };
 <% }); %>
@@ -100,13 +106,24 @@ var externalLoaded = false;
 var itemIndex = 0;
 var sessionLogs = [];
 
+function formatPrescription(b) {
+  var sph = b.sph_r || b.sph_l || b.sph || '';
+  var cyl = b.cyl_r || b.cyl_l || b.cyl || '';
+  var add = b.add_r || b.add_l || b.add || '';
+  if (sph || cyl || add) {
+    return ' (SPH : ' + sph + ' CYL : ' + cyl + ' ADD : ' + add + ')';
+  }
+  return '';
+}
+
 function getLocalOptionsHtml() {
   var html = '<option value="">-- Pilih Barang di Gudang KL --</option>';
   Object.keys(barangMap).forEach(function (id) {
     var b = barangMap[id];
     var code = b.barcode_id ? (' (' + b.barcode_id + ')') : '';
+    var rx = formatPrescription(b);
     html += '<option value="' + b.id + '" data-qty="' + b.qty + '">' +
-      escapeHtml(b.nama_barang) + code + ' (Stok: ' + b.qty + ')' +
+      escapeHtml(b.nama_barang) + escapeHtml(rx) + code + ' (Stok: ' + b.qty + ')' +
       '</option>';
   });
   return html;
@@ -119,8 +136,13 @@ function getExternalOptionsHtml() {
   }
   externalItems.forEach(function (item) {
     if (!item) return;
-    html += '<option value="' + escapeHtml(item.id) + '">' +
-      escapeHtml(item.nama_barang) + ' (' + escapeHtml(item.category || 'Ext') + ') - Stok: ' + (item.stock || 0) +
+    var name = item.nama_barang || item.name || '';
+    var code = item.barcode_id ? (' (' + item.barcode_id + ')') : '';
+    var rx = formatPrescription(item);
+    var cat = item.category || item.kategori_nama ? ' (' + (item.category || item.kategori_nama) + ')' : '';
+    var stock = item.stock !== undefined ? item.stock : (item.qty !== undefined ? item.qty : 0);
+    html += '<option value="' + escapeHtml(item.id) + '" data-stock="' + stock + '">' +
+      escapeHtml(name) + escapeHtml(rx) + code + escapeHtml(cat) + ' - Stok: ' + stock +
       '</option>';
   });
   return html;
