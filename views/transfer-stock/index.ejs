@@ -139,10 +139,9 @@ function getExternalOptionsHtml() {
     var name = item.nama_barang || item.name || '';
     var code = item.barcode_id ? (' (' + item.barcode_id + ')') : '';
     var rx = formatPrescription(item);
-    var cat = item.category || item.kategori_nama ? ' (' + (item.category || item.kategori_nama) + ')' : '';
     var stock = item.stock !== undefined ? item.stock : (item.qty !== undefined ? item.qty : 0);
     html += '<option value="' + escapeHtml(item.id) + '" data-stock="' + stock + '">' +
-      escapeHtml(name) + escapeHtml(rx) + code + escapeHtml(cat) + ' - Stok: ' + stock +
+      escapeHtml(name) + escapeHtml(rx) + code + ' (Stok: ' + stock + ')' +
       '</option>';
   });
   return html;
