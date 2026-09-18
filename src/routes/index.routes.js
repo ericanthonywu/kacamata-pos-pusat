@@ -91,7 +91,7 @@ router.get('/api/dashboard/kategori-breakdown', auth, async (req, res) => {
 });
 
 // Stock Gudang (read-only, reuses barang data)
-router.get('/stock-gudang', auth, async (req, res, next) => {
+router.get('/stock-gudang', auth, requireAdminOrGudang, async (req, res, next) => {
   try {
     const kategoriList = await kategoriService.getAll();
     res.render('stock-gudang/index', { title: 'Stock Gudang', kategoriList, activePage: 'stock-gudang' });
