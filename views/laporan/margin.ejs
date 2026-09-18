@@ -1,0 +1,1047 @@
+<% function fmtRp(v) { return 'Rp ' + Number(v||0).toLocaleString('id-ID'); }
+   function fmtDate(d) { if (!d) return '-'; var dt = new Date(d); return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear(); }
+   function fmtPersen(v) { return Number(v||0).toFixed(1) + '%'; }
+%>
+<%- include('../partials/top', { title, activePage }) %>
+
+<style>
+  /* Styling for expandable rows */
+  .cursor-pointer { cursor: pointer; }
+  .dt-control-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(108, 99, 255, 0.08);
+    color: var(--accent);
+    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
+  tr.shown .dt-control-icon {
+    transform: rotate(90deg);
+    background: var(--accent);
+    color: #ffffff;
+  }
+  .child-detail-container {
+    background: #fcfdfe;
+    border: 1px solid rgba(108, 99, 255, 0.15);
+    border-left: 5px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  }
+  .chart-box {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .chart-canvas {
+    width: 100%;
+    height: 360px;
+  }
+  .chart-canvas-donut {
+    width: 100%;
+    height: 320px;
+  }
+  .table-child th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #f1f3f9;
+  }
+  .table-child td {
+    font-size: 0.8rem;
+  }
+  .stat-badge-pill {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 20px;
+  }
+</style>
+
+<!-- Filter Section -->
+<div class="card p-3 mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-3">
+      <label class="form-label small fw-semibold text-muted mb-1">Dari Tanggal</label>
+      <input type="date" id="filterFrom" class="form-control form-control-sm" value="<%= filters.from || '' %>">
+    </div>
+    <div class="col-12 col-md-3">
+      <label class="form-label small fw-semibold text-muted mb-1">Sampai Tanggal</label>
+      <input type="date" id="filterTo" class="form-control form-control-sm" value="<%= filters.to || '' %>">
+    </div>
+    <div class="col-12 col-md-2">
+      <label class="form-label small fw-semibold text-muted mb-1">Sales</label>
+      <select id="filterSales" class="form-select form-select-sm">
+        <option value="">Semua Sales</option>
+        <% salesList.forEach(function(s) { %>
+          <option value="<%= s.id %>" <%= String(filters.sales_id) === String(s.id) ? 'selected' : '' %>><%= s.nama %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="col-12 col-md-2">
+      <label class="form-label small fw-semibold text-muted mb-1">Status Bayar</label>
+      <select id="filterStatus" class="form-select form-select-sm">
+        <option value="">Semua Status</option>
+        <option value="lunas" <%= filters.status_bayar === 'lunas' ? 'selected' : '' %>>Lunas</option>
+        <option value="dp" <%= filters.status_bayar === 'dp' ? 'selected' : '' %>>DP (Down Payment)</option>
+        <option value="belum_lunas" <%= filters.status_bayar === 'belum_lunas' ? 'selected' : '' %>>Belum Lunas</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-2 d-flex gap-2">
+      <button type="button" class="btn btn-primary btn-sm flex-fill" onclick="applyFilter()">
+        <i class="bi bi-search me-1"></i> Tampilkan
+      </button>
+      <button type="button" class="btn btn-outline-danger btn-sm" onclick="resetFilter()" title="Reset Filter">
+        <i class="bi bi-arrow-counterclockwise"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Analytics & Summary Cards -->
+<div class="row g-3 mb-4 row-cols-2 row-cols-md-4">
+  <div class="col">
+    <div class="stat-card">
+      <i class="bi bi-receipt stat-icon text-info"></i>
+      <div class="stat-value"><%= summary.total_transaksi.toLocaleString('id-ID') %></div>
+      <div class="stat-label">Total Transaksi</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="stat-card">
+      <i class="bi bi-cash-stack stat-icon text-primary"></i>
+      <div class="stat-value text-primary"><%= fmtRp(summary.total_penjualan) %></div>
+      <div class="stat-label">Total Nilai Jual (Excl. BPJS)</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="stat-card">
+      <i class="bi bi-box-seam stat-icon text-danger"></i>
+      <div class="stat-value text-danger"><%= fmtRp(summary.total_cost) %></div>
+      <div class="stat-label">Total Modal (Harga Beli)</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="stat-card">
+      <i class="bi bi-graph-up-arrow stat-icon <%= summary.total_margin >= 0 ? 'text-success' : 'text-danger' %>"></i>
+      <div class="stat-value <%= summary.total_margin >= 0 ? 'text-success' : 'text-danger' %>">
+        <%= fmtRp(summary.total_margin) %>
+      </div>
+      <div class="stat-label">
+        Total Margin 
+        <span class="badge bg-<%= summary.total_margin >= 0 ? 'success' : 'danger' %> ms-1">
+          <%= fmtPersen(summary.margin_persen) %>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Secondary Stats (Cash Inflow & Payment Realization) -->
+<div class="row g-3 mb-4 row-cols-2 row-cols-md-4">
+  <div class="col">
+    <div class="stat-card">
+      <i class="bi bi-wallet2 stat-icon text-success"></i>
+      <div class="stat-value text-success"><%= fmtRp(summary.total_uang_masuk) %></div>
+      <div class="stat-label">Total Uang Masuk Kas</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="stat-card">
+      <i class="bi bi-check-circle-fill stat-icon text-success"></i>
+      <div class="stat-value text-success"><%= summary.total_lunas %></div>
+      <div class="stat-label">Penjualan Lunas</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="stat-card">
+      <i class="bi bi-hourglass-split stat-icon text-warning"></i>
+      <div class="stat-value text-warning"><%= summary.total_dp %></div>
+      <div class="stat-label">Masih Status DP</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="stat-card">
+      <i class="bi bi-exclamation-octagon-fill stat-icon text-secondary"></i>
+      <div class="stat-value text-secondary"><%= summary.total_belum_lunas %></div>
+      <div class="stat-label">Belum Lunas</div>
+    </div>
+  </div>
+</div>
+
+<!-- amCharts 5 Analytics Section -->
+<div class="row g-3 mb-4">
+  <!-- Chart 1: Trend Margin & Arus Kas -->
+  <div class="col-12 col-xl-8">
+    <div class="chart-box h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h6 class="fw-bold mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Tren Penjualan, Modal & Margin</h6>
+          <small class="text-muted">Pergerakan harian nilai penjualan vs modal barang vs keuntungan bersih</small>
+        </div>
+      </div>
+      <div id="chartMarginTrend" class="chart-canvas"></div>
+    </div>
+  </div>
+
+  <!-- Chart 2: Donut Status Breakdown -->
+  <div class="col-12 col-xl-4">
+    <div class="chart-box h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h6 class="fw-bold mb-0"><i class="bi bi-pie-chart me-2 text-warning"></i>Status Pembayaran</h6>
+          <small class="text-muted">Distribusi transaksi Lunas vs DP vs Belum Lunas</small>
+        </div>
+      </div>
+      <div id="chartStatusDonut" class="chart-canvas-donut"></div>
+    </div>
+  </div>
+
+  <!-- Chart 3: Top 10 Barang Margin -->
+  <div class="col-12 col-xl-6">
+    <div class="chart-box h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h6 class="fw-bold mb-0"><i class="bi bi-trophy me-2 text-warning"></i>Top 10 Barang Paling Menguntungkan</h6>
+          <small class="text-muted">Produk dengan total kontribusi margin tertinggi</small>
+        </div>
+      </div>
+      <div id="chartTopItems" class="chart-canvas"></div>
+    </div>
+  </div>
+
+  <!-- Chart 4: Margin per Sales -->
+  <div class="col-12 col-xl-6">
+    <div class="chart-box h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h6 class="fw-bold mb-0"><i class="bi bi-person-badge me-2 text-info"></i>Kontribusi Margin per Sales</h6>
+          <small class="text-muted">Performa omzet penjualan dan margin yang dihasilkan sales</small>
+        </div>
+      </div>
+      <div id="chartSalesMargin" class="chart-canvas"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Server-Side DataTables Section -->
+<div class="card p-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h6 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Rincian Margin per Penjualan</h6>
+      <small class="text-muted">Klik pada baris atau ikon panah untuk melihat rincian modal barang dan margin kas per pembayaran</small>
+    </div>
+    <div>
+      <span class="badge bg-light text-dark border"><i class="bi bi-info-circle me-1 text-primary"></i>Rumus Margin: Nilai Jual - Harga Beli (Excl. BPJS)</span>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 w-100" id="tblMargin">
+      <thead>
+        <tr>
+          <th style="width: 38px;" class="text-center"></th>
+          <th>Tanggal</th>
+          <th>No. Nota</th>
+          <th>Pelanggan</th>
+          <th>Sales</th>
+          <th class="text-end">Nilai Jual</th>
+          <th class="text-end">Modal</th>
+          <th class="text-end">Margin Nota</th>
+          <th class="text-center">Status</th>
+          <th class="text-end">Uang Masuk</th>
+          <th class="text-end">Margin Kas</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr class="table-light fw-bold">
+          <th colspan="5" class="text-end text-uppercase">Total Halaman Terfilter:</th>
+          <th class="text-end" id="footPenjualan">-</th>
+          <th class="text-end" id="footModal">-</th>
+          <th class="text-end" id="footMargin">-</th>
+          <th></th>
+          <th class="text-end" id="footUangMasuk">-</th>
+          <th class="text-end" id="footMarginKas">-</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- amCharts 5 Core & Modules -->
+<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/percent.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/plugins/exporting.js"></script>
+
+<script>
+  // Helper currency formatter for client-side use
+  function fmtRp(v) {
+    return 'Rp ' + Number(v || 0).toLocaleString('id-ID');
+  }
+
+  function fmtDateStr(d) {
+    if (!d) return '-';
+    var dt = new Date(d);
+    return ('0' + dt.getDate()).slice(-2) + '/' + ('0' + (dt.getMonth() + 1)).slice(-2) + '/' + dt.getFullYear();
+  }
+
+  // Active amCharts 5 roots storage for cleanup
+  var am5Roots = [];
+
+  function disposeAllCharts() {
+    am5Roots.forEach(function(r) {
+      if (r && !r.isDisposed()) r.dispose();
+    });
+    am5Roots = [];
+  }
+
+  window.addEventListener('beforeunload', disposeAllCharts);
+
+  // --- Filter Actions ---
+  function applyFilter() {
+    var params = new URLSearchParams();
+    var from = $('#filterFrom').val();
+    var to = $('#filterTo').val();
+    var sales = $('#filterSales').val();
+    var status = $('#filterStatus').val();
+
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (sales) params.set('sales_id', sales);
+    if (status) params.set('status_bayar', status);
+
+    window.location.href = window.appUrl('/laporan/margin?' + params.toString());
+  }
+
+  function resetFilter() {
+    window.location.href = window.appUrl('/laporan/margin');
+  }
+
+  // --- Child Row Detail Formatter (HTML Builder) ---
+  function buildChildDetailHtml(d) {
+    var tipeLabelMap = {
+      frame: 'Frame',
+      lensa_r: 'Lensa (R)',
+      lensa_l: 'Lensa (L)',
+      aksesoris: 'Aksesoris',
+      lain_lain: 'Lain-Lain'
+    };
+
+    var html = '<div class="p-3 child-detail-container m-2">';
+
+    // Header summary strip
+    html += '<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">';
+    html += '  <div class="d-flex align-items-center gap-2">';
+    html += '    <span class="badge bg-primary fs-6 font-monospace">' + escapeHtml(d.no_nota || '-') + '</span>';
+    if (d.is_b2b) html += '    <span class="badge bg-info">Penjualan Toko (B2B)</span>';
+    html += '    <span class="text-muted small ms-2"><i class="bi bi-calendar3 me-1"></i>' + fmtDateStr(d.order_date) + '</span>';
+    html += '    <span class="text-muted small ms-2"><i class="bi bi-person me-1"></i>Pelanggan: <strong>' + escapeHtml(d.pelanggan_nama || '-') + '</strong></span>';
+    html += '  </div>';
+    html += '  <div class="d-flex align-items-center gap-3">';
+    html += '    <span class="small">Sales: <strong>' + escapeHtml(d.sales_nama || '-') + '</strong></span>';
+    html += '    <span class="small">Total Nilai Jual: <strong class="text-primary">' + fmtRp(d.subtotal) + '</strong></span>';
+    html += '    <span class="small">Total Modal: <strong class="text-danger">' + fmtRp(d.total_harga_beli) + '</strong></span>';
+    var netClass = d.margin_full >= 0 ? 'text-success' : 'text-danger';
+    html += '    <span class="small">Margin Nota: <strong class="' + netClass + '">' + fmtRp(d.margin_full) + '</strong></span>';
+    html += '  </div>';
+    html += '</div>';
+
+    // SECTION 1: Detail Barang & Modal
+    html += '<div class="mb-3">';
+    html += '  <h6 class="fw-bold small text-uppercase text-secondary mb-2"><i class="bi bi-box-seam me-1 text-primary"></i> 1. Rincian Barang & Modal Pokok</h6>';
+    html += '  <div class="table-responsive">';
+    html += '    <table class="table table-sm table-bordered table-child mb-0 align-middle">';
+    html += '      <thead>';
+    html += '        <tr>';
+    html += '          <th>Tipe</th>';
+    html += '          <th>Barang / Keterangan</th>';
+    html += '          <th>Barcode</th>';
+    html += '          <th class="text-center">Qty</th>';
+    html += '          <th class="text-end">Harga Jual Satuan</th>';
+    html += '          <th class="text-end">Diskon</th>';
+    html += '          <th class="text-end">Subtotal Jual</th>';
+    html += '          <th class="text-end">Modal Satuan</th>';
+    html += '          <th class="text-end">Total Modal</th>';
+    html += '          <th class="text-end">Margin Item</th>';
+    html += '        </tr>';
+    html += '      </thead>';
+    html += '      <tbody>';
+
+    if (d.detail && d.detail.length > 0) {
+      d.detail.forEach(function(item) {
+        var labelTipe = tipeLabelMap[item.tipe] || item.tipe;
+        var hargaBeliStr = item.harga_beli > 0 ? fmtRp(item.harga_beli) : '<span class="text-muted fst-italic">0 (N/A)</span>';
+        var costLineStr = item.cost_line > 0 ? fmtRp(item.cost_line) : '<span class="text-muted fst-italic">0 (N/A)</span>';
+        var marginClass = item.margin_line >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+
+        html += '<tr>';
+        html += '  <td><span class="badge bg-secondary">' + escapeHtml(labelTipe) + '</span></td>';
+        html += '  <td><strong>' + escapeHtml(item.nama_barang || item.keterangan || '-') + '</strong></td>';
+        html += '  <td><span class="font-monospace small text-muted">' + escapeHtml(item.barcode_id || '-') + '</span></td>';
+        html += '  <td class="text-center">' + (item.jumlah || 1) + '</td>';
+        html += '  <td class="text-end">' + fmtRp(item.harga) + '</td>';
+        html += '  <td class="text-end">' + (item.diskon > 0 ? ('- ' + fmtRp(item.diskon)) : '-') + '</td>';
+        html += '  <td class="text-end fw-semibold">' + fmtRp(item.harga_jual_line) + '</td>';
+        html += '  <td class="text-end">' + hargaBeliStr + '</td>';
+        html += '  <td class="text-end text-danger">' + costLineStr + '</td>';
+        html += '  <td class="text-end ' + marginClass + '">' + fmtRp(item.margin_line) + '</td>';
+        html += '</tr>';
+      });
+    } else {
+      html += '<tr><td colspan="10" class="text-center text-muted py-2">Tidak ada rincian barang</td></tr>';
+    }
+
+    html += '      </tbody>';
+    html += '      <tfoot>';
+    html += '        <tr class="table-light fw-bold">';
+    html += '          <td colspan="6" class="text-end text-uppercase">Total:</td>';
+    html += '          <td class="text-end text-primary">' + fmtRp(d.subtotal) + '</td>';
+    html += '          <td></td>';
+    html += '          <td class="text-end text-danger">' + fmtRp(d.total_harga_beli) + '</td>';
+    html += '          <td class="text-end ' + (d.margin_full >= 0 ? 'text-success' : 'text-danger') + '">' + fmtRp(d.margin_full) + '</td>';
+    html += '        </tr>';
+    html += '      </tfoot>';
+    html += '    </table>';
+    html += '  </div>';
+    html += '</div>';
+
+    // SECTION 2: Margin per Pembayaran (Cash Flow / DP Realization)
+    html += '<div class="mt-3">';
+    html += '  <div class="d-flex justify-content-between align-items-center mb-2">';
+    html += '    <h6 class="fw-bold small text-uppercase text-secondary mb-0"><i class="bi bi-cash-coin me-1 text-success"></i> 2. Analisis Margin Berdasarkan Uang Masuk (Per Pembayaran)</h6>';
+    html += '    <small class="text-muted">Dihitung dari kumulatif uang masuk dikurangi modal pokok barang</small>';
+    html += '  </div>';
+
+    html += '  <div class="table-responsive">';
+    html += '    <table class="table table-sm table-bordered table-child mb-0 align-middle">';
+    html += '      <thead>';
+    html += '        <tr>';
+    html += '          <th style="width: 40px;" class="text-center">#</th>';
+    html += '          <th>Tanggal Bayar</th>';
+    html += '          <th>Keterangan</th>';
+    html += '          <th>Metode Bayar</th>';
+    html += '          <th class="text-end">Jumlah Bayar</th>';
+    html += '          <th class="text-end">Kumulatif Uang Masuk</th>';
+    html += '          <th class="text-end">Modal Pokok</th>';
+    html += '          <th class="text-end">Margin Kas Saat Ini</th>';
+    html += '          <th class="text-end">Sisa Piutang</th>';
+    html += '        </tr>';
+    html += '      </thead>';
+    html += '      <tbody>';
+
+    if (d.pembayaran && d.pembayaran.length > 0) {
+      d.pembayaran.forEach(function(p, idx) {
+        var isProfit = p.margin_so_far >= 0;
+        var marginClass = isProfit ? 'text-success' : 'text-danger';
+        var badgeStatus = isProfit 
+          ? '<span class="badge bg-success ms-1"><i class="bi bi-check-circle me-1"></i>Untung ' + fmtRp(p.margin_so_far) + '</span>'
+          : '<span class="badge bg-danger ms-1"><i class="bi bi-exclamation-triangle me-1"></i>Minus ' + fmtRp(Math.abs(p.margin_so_far)) + '</span>';
+
+        html += '<tr>';
+        html += '  <td class="text-center fw-bold">' + (idx + 1) + '</td>';
+        html += '  <td>' + fmtDateStr(p.tanggal_bayar) + '</td>';
+        html += '  <td><span class="badge bg-light text-dark border">' + escapeHtml(p.keterangan || 'Pembayaran') + '</span></td>';
+        html += '  <td>' + escapeHtml(p.metode_pembayaran_nama || '-') + '</td>';
+        html += '  <td class="text-end fw-semibold">' + fmtRp(p.jumlah_bayar) + '</td>';
+        html += '  <td class="text-end fw-bold text-primary">' + fmtRp(p.cumulative_payment) + '</td>';
+        html += '  <td class="text-end text-muted">' + (idx === 0 ? fmtRp(d.total_harga_beli) : '-') + '</td>';
+        html += '  <td class="text-end fw-bold ' + marginClass + '">' + badgeStatus + '</td>';
+        html += '  <td class="text-end ' + (p.sisa_piutang > 0 ? 'text-warning fw-semibold' : 'text-success') + '">' + (p.sisa_piutang > 0 ? fmtRp(p.sisa_piutang) : 'LUNAS (Rp 0)') + '</td>';
+        html += '</tr>';
+      });
+    } else {
+      html += '<tr><td colspan="9" class="text-center text-muted py-2">Belum ada pembayaran yang dicatat</td></tr>';
+    }
+
+    html += '      </tbody>';
+    html += '    </table>';
+    html += '  </div>';
+
+    // Status Message Box (Clarification according to user requirement)
+    var marginKas = d.total_uang_masuk - d.total_harga_beli;
+    if (d.status_bayar === 'lunas') {
+      html += '<div class="alert alert-success d-flex align-items-center mt-2 py-2 small mb-0">';
+      html += '  <i class="bi bi-check-circle-fill me-2 fs-5"></i>';
+      html += '  <div><strong>Pembayaran Lunas:</strong> Seluruh uang pembayaran telah masuk penuh (' + fmtRp(d.total_uang_masuk) + '). Margin keuntungan bersih yang terealisasi adalah <strong>' + fmtRp(d.margin_full) + '</strong>.</div>';
+      html += '</div>';
+    } else if (marginKas < 0) {
+      html += '<div class="alert alert-danger d-flex align-items-center mt-2 py-2 small mb-0">';
+      html += '  <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>';
+      html += '  <div><strong>Modal Belum Tertutupi (Kas Defisit):</strong> Uang masuk dari DP saat ini baru <strong>' + fmtRp(d.total_uang_masuk) + '</strong>, sedangkan total modal barang adalah <strong>' + fmtRp(d.total_harga_beli) + '</strong>. Posisi keuntungan kas saat ini <strong>minus ' + fmtRp(Math.abs(marginKas)) + '</strong>. Keuntungan baru akan terealisasi setelah pelunasan berikutnya.</div>';
+      html += '</div>';
+    } else {
+      html += '<div class="alert alert-success d-flex align-items-center mt-2 py-2 small mb-0">';
+      html += '  <i class="bi bi-check-circle-fill me-2 fs-5"></i>';
+      html += '  <div><strong>Modal Sudah Tertutupi (Kas Surplus):</strong> Total uang masuk saat ini sebesar <strong>' + fmtRp(d.total_uang_masuk) + '</strong> telah menutupi total modal barang (' + fmtRp(d.total_harga_beli) + '). Posisi uang masuk saat ini sudah <strong>menghasilkan keuntungan kas sebesar ' + fmtRp(marginKas) + '</strong> meskipun masih ada sisa tagihan yang belum lunas.</div>';
+      html += '</div>';
+    }
+
+    html += '</div>'; // End Section 2
+    html += '</div>'; // End Container
+
+    return html;
+  }
+
+  // --- Initialize Server-Side DataTables ---
+  $(function () {
+    var table = $('#tblMargin').DataTable({
+      serverSide: true,
+      processing: true,
+      ordering: true,
+      searching: true,
+      pageLength: 25,
+      lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+      order: [[1, 'desc']], // Default: Order Date DESC
+      language: dtLanguageID,
+      ajax: {
+        url: window.appUrl('/laporan/margin/dt'),
+        type: 'GET',
+        data: function (d) {
+          d.start_date = $('#filterFrom').val();
+          d.end_date = $('#filterTo').val();
+          d.sales_id = $('#filterSales').val();
+          d.status_bayar = $('#filterStatus').val();
+        },
+        dataSrc: function (json) {
+          if (json.grandTotals) {
+            $('#footPenjualan').text(fmtRp(json.grandTotals.grand_penjualan));
+            $('#footModal').text(fmtRp(json.grandTotals.grand_cost));
+            var m = json.grandTotals.grand_margin;
+            $('#footMargin').text(fmtRp(m)).removeClass('text-success text-danger').addClass(m >= 0 ? 'text-success' : 'text-danger');
+            $('#footUangMasuk').text(fmtRp(json.grandTotals.grand_uang_masuk));
+            var mk = json.grandTotals.grand_uang_masuk - json.grandTotals.grand_cost;
+            $('#footMarginKas').text(fmtRp(mk)).removeClass('text-success text-danger').addClass(mk >= 0 ? 'text-success' : 'text-danger');
+          }
+          return json.data || [];
+        }
+      },
+      columns: [
+        {
+          data: null,
+          orderable: false,
+          searchable: false,
+          className: 'text-center dt-control cursor-pointer',
+          render: function () {
+            return '<span class="dt-control-icon"><i class="bi bi-chevron-right"></i></span>';
+          }
+        },
+        {
+          data: 'order_date',
+          render: function (data) { return fmtDateStr(data); }
+        },
+        {
+          data: 'no_nota',
+          className: 'cursor-pointer',
+          render: function (data, type, row) {
+            var html = '<span class="fw-semibold font-monospace text-primary">' + escapeHtml(data || '-') + '</span>';
+            if (row.is_b2b) {
+              html += ' <span class="badge bg-info text-dark ms-1" style="font-size:0.65rem">B2B</span>';
+            }
+            return html;
+          }
+        },
+        {
+          data: 'pelanggan_nama',
+          render: function (data) { return escapeHtml(data || '-'); }
+        },
+        {
+          data: 'sales_nama',
+          render: function (data) { return escapeHtml(data || '-'); }
+        },
+        {
+          data: 'subtotal',
+          className: 'text-end fw-semibold',
+          render: function (data) { return fmtRp(data); }
+        },
+        {
+          data: 'total_harga_beli',
+          className: 'text-end text-danger',
+          render: function (data) { return fmtRp(data); }
+        },
+        {
+          data: 'margin_full',
+          className: 'text-end fw-bold',
+          render: function (data) {
+            var val = parseFloat(data || 0);
+            var cls = val >= 0 ? 'text-success' : 'text-danger';
+            return '<span class="' + cls + '">' + fmtRp(val) + '</span>';
+          }
+        },
+        {
+          data: 'status_bayar',
+          className: 'text-center',
+          render: function (data) {
+            if (data === 'lunas') {
+              return '<span class="badge bg-success stat-badge-pill">Lunas</span>';
+            } else if (data === 'dp') {
+              return '<span class="badge bg-warning text-dark stat-badge-pill">DP</span>';
+            } else {
+              return '<span class="badge bg-danger stat-badge-pill">Belum Lunas</span>';
+            }
+          }
+        },
+        {
+          data: 'total_uang_masuk',
+          className: 'text-end fw-semibold text-primary',
+          render: function (data) { return fmtRp(data); }
+        },
+        {
+          data: 'margin_kas',
+          className: 'text-end fw-bold',
+          render: function (data) {
+            var val = parseFloat(data || 0);
+            var cls = val >= 0 ? 'text-success' : 'text-danger';
+            return '<span class="' + cls + '">' + fmtRp(val) + '</span>';
+          }
+        }
+      ],
+      layout: {
+        topStart: 'buttons',
+        topEnd: 'search',
+        bottomStart: 'info',
+        bottomEnd: 'paging'
+      }
+    });
+
+    // --- Expandable Child Row Click Handler ---
+    $('#tblMargin tbody').on('click', 'td.dt-control, td:nth-child(2), td:nth-child(3)', function () {
+      var tr = $(this).closest('tr');
+      var row = table.row(tr);
+
+      if (row.child.isShown()) {
+        // Already open - collapse it
+        row.child.hide();
+        tr.removeClass('shown');
+      } else {
+        // Open row
+        var rowData = row.data();
+        if (!rowData || !rowData.id) return;
+
+        // Show loading placeholder inside child row
+        row.child('<div class="p-3 text-center text-muted child-detail-container m-2"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Memuat rincian margin...</div>').show();
+        tr.addClass('shown');
+
+        // Fetch detail via AJAX
+        $.ajax({
+          url: window.appUrl('/laporan/margin/detail/' + rowData.id),
+          type: 'GET',
+          success: function (res) {
+            if (res.success && res.data) {
+              row.child(buildChildDetailHtml(res.data)).show();
+            } else {
+              row.child('<div class="p-3 text-danger text-center child-detail-container m-2">Gagal memuat rincian.</div>').show();
+            }
+          },
+          error: function (xhr) {
+            row.child('<div class="p-3 text-danger text-center child-detail-container m-2">Terjadi kesalahan: ' + (xhr.responseJSON?.message || 'Gagal menghubungi server') + '</div>').show();
+          }
+        });
+      }
+    });
+
+    // --- Load amCharts 5 ---
+    initAmCharts();
+  });
+
+  // ==========================================
+  // AMCHARTS 5 IMPLEMENTATION
+  // ==========================================
+  function initAmCharts() {
+    var queryParams = {
+      from: $('#filterFrom').val(),
+      to: $('#filterTo').val(),
+      sales_id: $('#filterSales').val(),
+      status_bayar: $('#filterStatus').val()
+    };
+
+    // 1. Chart Margin Trend
+    initChartTrend(queryParams);
+    // 2. Chart Status Donut
+    initChartStatus(queryParams);
+    // 3. Chart Top Items
+    initChartTopItems(queryParams);
+    // 4. Chart Sales Margin
+    initChartSales(queryParams);
+  }
+
+  // --- 1. Tren Penjualan, Modal & Margin (XY Area / Line) ---
+  function initChartTrend(params) {
+    $.getJSON(window.appUrl('/laporan/margin/chart/trend'), params, function (res) {
+      if (!res.success) return;
+      var data = res.data || [];
+
+      var root = am5.Root.new("chartMarginTrend");
+      am5Roots.push(root);
+      root.setThemes([am5themes_Animated.new(root)]);
+
+      var chart = root.container.children.push(am5xy.XYChart.new(root, {
+        panX: true,
+        panY: false,
+        wheelX: "panX",
+        wheelY: "zoomX",
+        layout: root.verticalLayout,
+        paddingLeft: 0,
+        paddingRight: 20
+      }));
+
+      // Scrollbar X for time range navigation
+      chart.set("scrollbarX", am5xy.XYChartScrollbar.new(root, {
+        orientation: "horizontal",
+        height: 12
+      }));
+
+      // Cursor
+      var cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
+        behavior: "zoomX"
+      }));
+      cursor.lineY.set("visible", false);
+
+      // X Axis (Dates)
+      var xAxis = chart.xAxes.push(am5xy.CategoryAxis.new(root, {
+        categoryField: "tanggal",
+        renderer: am5xy.AxisRendererX.new(root, {
+          minGridDistance: 45,
+          cellStartLocation: 0.1,
+          cellEndLocation: 0.9
+        })
+      }));
+      xAxis.get("renderer").labels.template.setAll({
+        fontSize: 11,
+        rotation: -45,
+        centerY: am5.p50,
+        centerX: am5.p100
+      });
+      xAxis.data.setAll(data);
+
+      // Y Axis (Values)
+      var yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererY.new(root, {})
+      }));
+      yAxis.get("renderer").labels.template.adapters.add("text", function (text, target) {
+        var val = target.dataItem ? target.dataItem.get("value") : 0;
+        if (!val) return "Rp 0";
+        if (Math.abs(val) >= 1000000) return "Rp " + (val / 1000000).toFixed(1) + " Jt";
+        if (Math.abs(val) >= 1000) return "Rp " + (val / 1000).toFixed(0) + " Rb";
+        return "Rp " + val;
+      });
+
+      // Series 1: Penjualan (Area)
+      var seriesPenjualan = chart.series.push(am5xy.LineSeries.new(root, {
+        name: "Nilai Penjualan",
+        xAxis: xAxis,
+        yAxis: yAxis,
+        valueYField: "revenue",
+        categoryXField: "tanggal",
+        stroke: am5.color(0x6c63ff),
+        fill: am5.color(0x6c63ff),
+        tooltip: am5.Tooltip.new(root, {
+          labelText: "Penjualan: Rp {valueY.formatNumber('#,###')}"
+        })
+      }));
+      seriesPenjualan.strokes.template.setAll({ strokeWidth: 2 });
+      seriesPenjualan.fills.template.setAll({ fillOpacity: 0.15, visible: true });
+      seriesPenjualan.data.setAll(data);
+
+      // Series 2: Modal (Area)
+      var seriesCost = chart.series.push(am5xy.LineSeries.new(root, {
+        name: "Modal Barang (HPP)",
+        xAxis: xAxis,
+        yAxis: yAxis,
+        valueYField: "cost",
+        categoryXField: "tanggal",
+        stroke: am5.color(0xff6b6b),
+        fill: am5.color(0xff6b6b),
+        tooltip: am5.Tooltip.new(root, {
+          labelText: "Modal: Rp {valueY.formatNumber('#,###')}"
+        })
+      }));
+      seriesCost.strokes.template.setAll({ strokeWidth: 2 });
+      seriesCost.fills.template.setAll({ fillOpacity: 0.15, visible: true });
+      seriesCost.data.setAll(data);
+
+      // Series 3: Margin Bersih (Line with Bullets)
+      var seriesMargin = chart.series.push(am5xy.LineSeries.new(root, {
+        name: "Margin Bersih",
+        xAxis: xAxis,
+        yAxis: yAxis,
+        valueYField: "margin",
+        categoryXField: "tanggal",
+        stroke: am5.color(0x10b981),
+        tooltip: am5.Tooltip.new(root, {
+          labelText: "[bold]Margin: Rp {valueY.formatNumber('#,###')}[/]"
+        })
+      }));
+      seriesMargin.strokes.template.setAll({ strokeWidth: 3 });
+      seriesMargin.bullets.push(function () {
+        return am5.Bullet.new(root, {
+          sprite: am5.Circle.new(root, {
+            radius: 4,
+            fill: am5.color(0x10b981),
+            stroke: root.interfaceColors.get("background"),
+            strokeWidth: 2
+          })
+        });
+      });
+      seriesMargin.data.setAll(data);
+
+      // Legend
+      var legend = chart.children.push(am5.Legend.new(root, {
+        centerX: am5.p50,
+        x: am5.p50,
+        marginTop: 10
+      }));
+      legend.data.setAll(chart.series.values);
+
+      // Exporting
+      am5plugins_exporting.Exporting.new(root, {
+        menu: am5plugins_exporting.ExportingMenu.new(root, {}),
+        filePrefix: "Tren_Margin"
+      });
+
+      chart.appear(1000, 100);
+    });
+  }
+
+  // --- 2. Donut Status Pembayaran (am5percent) ---
+  function initChartStatus(params) {
+    $.getJSON(window.appUrl('/laporan/margin/chart/status'), params, function (res) {
+      if (!res.success) return;
+      var data = res.data || [];
+
+      var root = am5.Root.new("chartStatusDonut");
+      am5Roots.push(root);
+      root.setThemes([am5themes_Animated.new(root)]);
+
+      var chart = root.container.children.push(am5percent.PieChart.new(root, {
+        innerRadius: am5.percent(55),
+        layout: root.verticalLayout
+      }));
+
+      var series = chart.series.push(am5percent.PieSeries.new(root, {
+        valueField: "revenue",
+        categoryField: "status",
+        alignLabels: false
+      }));
+
+      // Slice colors mapped to statuses
+      series.slices.template.adapters.add("fill", function (fill, target) {
+        if (!target.dataItem) return fill;
+        var st = target.dataItem.dataContext.raw_status;
+        if (st === 'lunas') return am5.color(0x10b981); // Emerald
+        if (st === 'dp') return am5.color(0xf59e0b);    // Amber
+        return am5.color(0xef4444);                     // Red
+      });
+
+      series.slices.template.setAll({
+        stroke: root.interfaceColors.get("background"),
+        strokeWidth: 2,
+        tooltipText: "[bold]{category}[/]\nOmzet: Rp {value.formatNumber('#,###')}\nTransaksi: {jumlah}\nMargin: Rp {margin.formatNumber('#,###')}"
+      });
+
+      series.labels.template.setAll({
+        textType: "circular",
+        radius: 4,
+        fontSize: 11
+      });
+
+      series.data.setAll(data);
+
+      var legend = chart.children.push(am5.Legend.new(root, {
+        centerX: am5.p50,
+        x: am5.p50,
+        marginTop: 15,
+        marginBottom: 5
+      }));
+      legend.data.setAll(series.dataItems);
+
+      series.appear(1000, 100);
+    });
+  }
+
+  // --- 3. Top 10 Barang Paling Menguntungkan (Horizontal Bar) ---
+  function initChartTopItems(params) {
+    $.getJSON(window.appUrl('/laporan/margin/chart/top-items'), params, function (res) {
+      if (!res.success) return;
+      var data = (res.data || []).reverse(); // Reverse for clean ascending horizontal bar layout
+
+      var root = am5.Root.new("chartTopItems");
+      am5Roots.push(root);
+      root.setThemes([am5themes_Animated.new(root)]);
+
+      var chart = root.container.children.push(am5xy.XYChart.new(root, {
+        panX: false,
+        panY: false,
+        layout: root.verticalLayout,
+        paddingLeft: 0,
+        paddingRight: 20
+      }));
+
+      var yRenderer = am5xy.AxisRendererY.new(root, {
+        inversed: false,
+        cellStartLocation: 0.1,
+        cellEndLocation: 0.9
+      });
+      yRenderer.labels.template.setAll({
+        fontSize: 11,
+        maxWidth: 150,
+        oversizedBehavior: "truncate"
+      });
+
+      var yAxis = chart.yAxes.push(am5xy.CategoryAxis.new(root, {
+        categoryField: "nama_barang",
+        renderer: yRenderer
+      }));
+      yAxis.data.setAll(data);
+
+      var xAxis = chart.xAxes.push(am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererX.new(root, {})
+      }));
+      xAxis.get("renderer").labels.template.adapters.add("text", function (text, target) {
+        var val = target.dataItem ? target.dataItem.get("value") : 0;
+        if (!val) return "Rp 0";
+        if (Math.abs(val) >= 1000000) return "Rp " + (val / 1000000).toFixed(1) + " Jt";
+        if (Math.abs(val) >= 1000) return "Rp " + (val / 1000).toFixed(0) + " Rb";
+        return "Rp " + val;
+      });
+
+      // Series Margin
+      var seriesMargin = chart.series.push(am5xy.ColumnSeries.new(root, {
+        name: "Margin Bersih",
+        xAxis: xAxis,
+        yAxis: yAxis,
+        valueXField: "margin",
+        categoryYField: "nama_barang",
+        fill: am5.color(0x10b981),
+        tooltip: am5.Tooltip.new(root, {
+          labelText: "[bold]{categoryY}[/]\nMargin: Rp {valueX.formatNumber('#,###')}\nTerjual: {total_qty} pcs"
+        })
+      }));
+      seriesMargin.columns.template.setAll({
+        cornerRadiusTR: 4,
+        cornerRadiusBR: 4
+      });
+      seriesMargin.data.setAll(data);
+
+      // Series Cost
+      var seriesCost = chart.series.push(am5xy.ColumnSeries.new(root, {
+        name: "Modal (HPP)",
+        xAxis: xAxis,
+        yAxis: yAxis,
+        valueXField: "cost",
+        categoryYField: "nama_barang",
+        fill: am5.color(0xff6b6b),
+        tooltip: am5.Tooltip.new(root, {
+          labelText: "Modal: Rp {valueX.formatNumber('#,###')}"
+        })
+      }));
+      seriesCost.columns.template.setAll({
+        cornerRadiusTR: 4,
+        cornerRadiusBR: 4
+      });
+      seriesCost.data.setAll(data);
+
+      var legend = chart.children.push(am5.Legend.new(root, {
+        centerX: am5.p50,
+        x: am5.p50,
+        marginTop: 10
+      }));
+      legend.data.setAll(chart.series.values);
+
+      chart.appear(1000, 100);
+    });
+  }
+
+  // --- 4. Performa Margin per Sales (Clustered Column) ---
+  function initChartSales(params) {
+    $.getJSON(window.appUrl('/laporan/margin/chart/sales'), params, function (res) {
+      if (!res.success) return;
+      var data = res.data || [];
+
+      var root = am5.Root.new("chartSalesMargin");
+      am5Roots.push(root);
+      root.setThemes([am5themes_Animated.new(root)]);
+
+      var chart = root.container.children.push(am5xy.XYChart.new(root, {
+        panX: false,
+        panY: false,
+        layout: root.verticalLayout,
+        paddingLeft: 0,
+        paddingRight: 20
+      }));
+
+      var xAxis = chart.xAxes.push(am5xy.CategoryAxis.new(root, {
+        categoryField: "sales_nama",
+        renderer: am5xy.AxisRendererX.new(root, {
+          minGridDistance: 30,
+          cellStartLocation: 0.1,
+          cellEndLocation: 0.9
+        })
+      }));
+      xAxis.get("renderer").labels.template.setAll({
+        fontSize: 11,
+        rotation: -25,
+        centerY: am5.p50,
+        centerX: am5.p100
+      });
+      xAxis.data.setAll(data);
+
+      var yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererY.new(root, {})
+      }));
+      yAxis.get("renderer").labels.template.adapters.add("text", function (text, target) {
+        var val = target.dataItem ? target.dataItem.get("value") : 0;
+        if (!val) return "Rp 0";
+        if (Math.abs(val) >= 1000000) return "Rp " + (val / 1000000).toFixed(1) + " Jt";
+        if (Math.abs(val) >= 1000) return "Rp " + (val / 1000).toFixed(0) + " Rb";
+        return "Rp " + val;
+      });
+
+      // Series Penjualan
+      var seriesRev = chart.series.push(am5xy.ColumnSeries.new(root, {
+        name: "Penjualan",
+        xAxis: xAxis,
+        yAxis: yAxis,
+        valueYField: "revenue",
+        categoryXField: "sales_nama",
+        fill: am5.color(0x6c63ff),
+        tooltip: am5.Tooltip.new(root, {
+          labelText: "Omzet {categoryX}: Rp {valueY.formatNumber('#,###')}\nTransaksi: {total_transaksi}"
+        })
+      }));
+      seriesRev.columns.template.setAll({ cornerRadiusTL: 4, cornerRadiusTR: 4 });
+      seriesRev.data.setAll(data);
+
+      // Series Margin
+      var seriesMargin = chart.series.push(am5xy.ColumnSeries.new(root, {
+        name: "Margin",
+        xAxis: xAxis,
+        yAxis: yAxis,
+        valueYField: "margin",
+        categoryXField: "sales_nama",
+        fill: am5.color(0x10b981),
+        tooltip: am5.Tooltip.new(root, {
+          labelText: "[bold]Margin: Rp {valueY.formatNumber('#,###')}[/]"
+        })
+      }));
+      seriesMargin.columns.template.setAll({ cornerRadiusTL: 4, cornerRadiusTR: 4 });
+      seriesMargin.data.setAll(data);
+
+      var legend = chart.children.push(am5.Legend.new(root, {
+        centerX: am5.p50,
+        x: am5.p50,
+        marginTop: 10
+      }));
+      legend.data.setAll(chart.series.values);
+
+      chart.appear(1000, 100);
+    });
+  }
+</script>
+
+<%- include('../partials/bottom') %>
