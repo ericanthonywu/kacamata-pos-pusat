@@ -74,17 +74,17 @@
     </a>
   </div>
 
-  <% if (isAdmin) { %>
   <div class="sidebar-section">
     <div class="sidebar-label">Stok</div>
     <a href="<%= bp %>/stock-gudang" class="sidebar-link <%= activePage === 'stock-gudang' ? 'active' : '' %>">
       <i class="bi bi-house-gear"></i> Stock Gudang
     </a>
+    <% if (isAdmin) { %>
     <a href="<%= bp %>/transfer-stock" class="sidebar-link <%= activePage === 'transfer-stock' ? 'active' : '' %>">
       <i class="bi bi-arrow-left-right"></i> Transfer Stock
     </a>
+    <% } %>
   </div>
-  <% } %>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Master Data</div>
