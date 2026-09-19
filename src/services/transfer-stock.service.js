@@ -56,7 +56,7 @@ exports.getExternalItems = async function () {
         });
       });
       req.on('error', reject);
-      req.setTimeout(5000, function () {
+      req.setTimeout(15000, function () {
         req.destroy();
         reject(new Error('Koneksi timeout'));
       });
@@ -108,7 +108,7 @@ async function pushTransferToBranch(config, payload) {
         'Content-Length': Buffer.byteLength(postData),
         ...(config.apiKey ? { 'X-API-Key': config.apiKey } : {})
       },
-      timeout: 3000
+      timeout: 15000
     };
 
     return await new Promise((resolve) => {
@@ -169,7 +169,8 @@ exports.executeTransfer = async function (data) {
 
     const externalBarangId = item.external_barang_id;
     if (!externalBarangId) {
-      throw Object.assign(new Error(`Item #${rowNum}: Pilih item cabang tujuan`), { status: 400 });
+      const bName = item.local_barang_nama || item.nama_barang || `#${rowNum}`;
+      throw Object.assign(new Error(`Item "${bName}": Belum dipetakan ke item cabang tujuan`), { status: 400 });
     }
 
     validatedItems.push({
