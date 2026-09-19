@@ -1,7 +1,7 @@
 {
   "name": "kacamata-pos",
   "version": "1.0.0",
-  "description": "Kacamata POS - Optical Shop Admin Panel",
+  "description": "Optik Kacamata Lensa - Optical Shop Admin Panel",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
