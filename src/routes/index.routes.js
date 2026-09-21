@@ -130,6 +130,10 @@ router.use('/laporan', require('./laporan.routes'));
 router.use('/bukti-hitung-fisik', require('./bukti-hitung-fisik.routes'));
 router.use('/transfer-stock', auth, requireAdmin, require('./transfer-stock.routes'));
 
+// Penjualan Nota API (Called by kacamata-pos-print microservice)
+const penjualanController = require('../controllers/penjualan.controller');
+router.get('/api/penjualan/nota/:no_nota', penjualanController.getByNoNota);
+
 // Print API
 router.post('/api/print/raw', auth, (req, res) => {
   const { textData, printerName } = req.body;
