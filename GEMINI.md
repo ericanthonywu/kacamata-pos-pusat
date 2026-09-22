@@ -25,7 +25,7 @@ Both apps share the **same tech stack and architecture** but connect to differen
 | New shared feature (e.g. print, DataTables, health-check, UI component) | ✅ **BOTH** |
 | DB migration / seed for pusat schema | ❌ pusat only (`db/migrations/`) |
 | DB migration / seed for cabang schema | ❌ cabang only |
-| GEMINI.md / project rule update that applies universally | ✅ **BOTH** |
+| GEMINI.md / CLAUDE.md / project rule update that applies universally | ✅ **BOTH** |
 
 ### Verification checklist before every code change:
 1. ☐ Identify which project(s) are affected (see table above)
@@ -41,11 +41,25 @@ Both apps share the **same tech stack and architecture** but connect to differen
 
 ---
 
+## Deployment Target
+
+> **Server target: Node.js 24 (Modern LTS)**
+
+| App | Environment | Node.js | Notes |
+|---|---|---|---|
+| `kacamata-pos-pusat` | Linux server (PM2) | **Node.js 24 (Modern LTS)** | ✅ Boleh pakai ES2020+, optional chaining (`?.`), nullish coalescing (`??`), `fs/promises`, dll |
+| `kacamata-pos` | Linux server (PM2) | **Node.js 24 (Modern LTS)** | ✅ Sama seperti pusat |
+| `kacamata-pos-print` | **Windows 7 / Node 13** | ⚠️ **LEGACY** | ❌ Hanya ES2019, TIDAK boleh pakai syntax/API yang lebih baru |
+
+> **PENTING:** Jika ada perubahan di `kacamata-pos-print`, pastikan kompatibel dengan Node 13 dan Windows 7. Jangan gunakan optional chaining (`?.`), nullish coalescing (`??`), `fs/promises`, `globalThis`, atau fitur ES2020+ lainnya di repo tersebut.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Runtime | Node.js |
+| Runtime | Node.js **24 (Modern LTS)** — server production sudah mendukung fitur modern |
 | Framework | Express 4 + EJS views |
 | Database | PostgreSQL via **Knex.js** |
 | Auth | `express-session` + bcryptjs |
@@ -141,7 +155,7 @@ const count = await db('penjualan').where('pelanggan_id', id).count('id as cnt')
 ```
 
 ### Rule 6 — DRY: No Duplicate Business Logic
-- Shared calculations must be extracted into `src`
+- Shared calculations must be extracted into `src/utils/*.helper.js`
 - `komisi.helper.js` contains `buildKomisiRows()` — do NOT copy-paste this logic elsewhere
 
 ### Rule 7 — Always Use Local WIB Time (NEVER UTC)
@@ -213,7 +227,7 @@ throw Object.assign(new Error('Human-readable message'), { status: 400 });
 
 ## File Map (Current State)
 
-### Repositories (`src/repositories`)
+### Repositories (`src/repositories/`)
 | File | Table |
 |---|---|
 | `barang.repository.js` | `barang` |
@@ -238,7 +252,7 @@ throw Object.assign(new Error('Human-readable message'), { status: 400 });
 | `bukti-hitung-fisik.repository.js` | `bukti_hitung_fisik` |
 | `laporan.repository.js` | read-only komisi reporting (multi-table JOINs OK) |
 
-### Utilities (`src/utils`)
+### Utilities (`src/utils/`)
 | File | Purpose |
 |---|---|
 | `response.js` | `ok(res, data, status)` / `fail(res, err, status)` |
@@ -271,7 +285,7 @@ throw Object.assign(new Error('Human-readable message'), { status: 400 });
 | `metode_pembayaran` | `id`, `nama` |
 | `penjualan` | `id`, `no_nota` (`INV-YYYYMMDD-XXXX`/`B2B-YYYYMMDD-XXXX`), `pelanggan_id`, `sales_id`, `created_by`, `order_date`, `subtotal`, `bpjs`, `total`, `status_bayar`, `dp`, `metode_bayar_id`, `is_b2b` |
 | `penjualan_detail` | `id`, `penjualan_id`, `tipe` (`frame`/`lensa_l`/`lensa_r`/`lain_lain`), `barang_id`, `harga`, `diskon`, `jumlah` |
-| `pembayaran_penjualan` | `id`, `penjualan_id`, `tanggal_bayar`, `jumlah_bayar`, `metode_bayar_id` |
+| `pembayaran-penjualan` | `id`, `penjualan_id`, `tanggal_bayar`, `jumlah_bayar`, `metode_bayar_id` |
 | `kas` | `id`, `tipe` (`masuk`/`keluar`), `kategori`, `jumlah`, `tanggal`, `referensi_id`, `referensi_tipe`, `penjualan_id`, `metode_bayar_id` |
 | `komisi_sales` | `id`, `penjualan_id`, `sales_id`, `tipe_item`, `nominal_komisi` |
 | `penjualan_retur` | `id`, `kode_retur` (`RJ-YYYYMMDD-XXXX`), `penjualan_id`, `tanggal_retur`, `total_retur` |
