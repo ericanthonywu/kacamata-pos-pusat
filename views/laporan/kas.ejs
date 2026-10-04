@@ -1,0 +1,644 @@
+<% function fmtRp(v) { return 'Rp ' + Number(v||0).toLocaleString('id-ID'); } function fmtDate(d) { return d ? new
+  Date(d).toLocaleDateString('id-ID') : '-' ; } %>
+  <%- include('../partials/top', { title, activePage }) %>
+
+    <div class="row g-2 mb-3 align-items-end">
+      <div class="col-auto">
+        <label class="form-label small">Dari</label>
+        <input type="date" id="filterFrom" class="form-control form-control-sm" value="<%= filters.from || '' %>">
+      </div>
+      <div class="col-auto">
+        <label class="form-label small">Sampai</label>
+        <input type="date" id="filterTo" class="form-control form-control-sm" value="<%= filters.to || '' %>">
+      </div>
+      <div class="col-auto">
+        <label class="form-label small">Sales</label>
+        <select id="filterSales" class="form-select form-select-sm">
+          <option value="">Semua</option>
+          <% salesList.forEach(function(s) { %>
+            <option value="<%= s.id %>" <%=String(filters.sales_id)===String(s.id) ? 'selected' : '' %>><%= s.nama %>
+            </option>
+            <% }); %>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="button" class="btn btn-primary btn-sm" onclick="reloadKas()"><i class="bi bi-search"></i>
+          Tampilkan</button>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="resetFilter()"><i
+            class="bi bi-x-circle"></i> Reset</button>
+      </div>
+    </div>
+
+    <% if (currentUser.hak_akses === 'admin') { %>
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart-line me-2"></i>Grafik Arus Kas</h6>
+        <div class="btn-group btn-group-sm" id="chartGroupBy" role="group">
+          <button type="button" class="btn btn-outline-primary active" data-group="day">Harian</button>
+          <button type="button" class="btn btn-outline-primary" data-group="week">Mingguan</button>
+          <button type="button" class="btn btn-outline-primary" data-group="month">Bulanan</button>
+          <button type="button" class="btn btn-outline-primary" data-group="year">Tahunan</button>
+        </div>
+      </div>
+      <div id="kasChart" style="width:100%; height:370px;"></div>
+    </div>
+    <% } %>
+
+    <% if (currentUser.hak_akses === 'admin') { %>
+    <div class="row g-3 mb-4 row-cols-1 row-cols-md-3">
+      <div class="col">
+        <div class="stat-card"><i class="bi bi-cash-stack stat-icon text-success"></i>
+          <div class="stat-value text-success">
+            <%= fmtRp(summary.total_uang_masuk) %>
+          </div>
+          <div class="stat-label fw-bold text-success">Total Uang Masuk</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="stat-card"><i class="bi bi-cash stat-icon text-success"></i>
+          <div class="stat-value text-success">
+            <%= fmtRp(summary.total_cash) %>
+          </div>
+          <div class="stat-label text-success">Total Metode Cash</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="stat-card"><i class="bi bi-bank stat-icon text-success"></i>
+          <div class="stat-value text-success">
+            <%= fmtRp(summary.total_transfer) %>
+          </div>
+          <div class="stat-label text-success">Total Metode Transfer</div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <div class="row g-3 mb-4 row-cols-2 row-cols-md-<%= currentUser.hak_akses === 'admin' ? '5' : '2' %>">
+      <div class="col">
+        <div class="stat-card"><i class="bi bi-receipt stat-icon text-info"></i>
+          <div class="stat-value">
+            <%= summary.total_pembayaran %>
+          </div>
+          <div class="stat-label">Total Transaksi</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="stat-card"><i class="bi bi-shield-plus stat-icon text-secondary"></i>
+          <div class="stat-value">
+            <%= fmtRp(summary.total_bpjs) %>
+          </div>
+          <div class="stat-label">Total BPJS</div>
+        </div>
+      </div>
+      <% if (currentUser.hak_akses === 'admin') { %>
+      <div class="col">
+        <div class="stat-card"><i class="bi bi-wallet2 stat-icon text-warning"></i>
+          <div class="stat-value">
+            <%= fmtRp(summary.uang_dari_pelunasan) %>
+          </div>
+          <div class="stat-label">Total Pelunasan</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="stat-card"><i class="bi bi-cart-check stat-icon text-primary"></i>
+          <div class="stat-value">
+            <%= fmtRp(summary.uang_dari_penjualan) %>
+          </div>
+          <div class="stat-label">Jual Non-Pelunasan</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="stat-card"><i class="bi bi-arrow-return-left stat-icon text-danger"></i>
+          <div class="stat-value text-danger">
+            <%= fmtRp(summary.total_retur) %>
+          </div>
+          <div class="stat-label">Total Retur</div>
+        </div>
+      </div>
+      <% } %>
+    </div>
+
+    <div class="card p-3">
+      <table id="tblKas" class="table table-hover mb-0" style="width:100%">
+        <thead>
+          <tr>
+            <th>No. Nota</th>
+            <th>Tanggal</th>
+            <th>Pelanggan</th>
+            <th>Sales</th>
+            <th>Total</th>
+            <th>DP</th>
+            <th>Pelunasan</th>
+            <th>Metode Bayar</th>
+            <th>BPJS</th>
+            <th>Status</th>
+            <% if (currentUser.hak_akses === 'admin') { %>
+            <th>Uang Masuk</th>
+            <% } %>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="modal fade" id="detailModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Detail Penjualan</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="detailBody">
+            <div class="text-center">
+              <div class="spinner-border text-primary" role="status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      $(function () {
+        function newExportAction(e, dt, button, config) {
+          var self = this;
+          var oldStart = dt.settings()[0]._iDisplayStart;
+          dt.one('preXhr', function (e, s, data) {
+            data.start = 0;
+            data.length = -1;
+            dt.one('preDraw', function (e, settings) {
+              if (button[0].className.indexOf('buttons-excel') >= 0) {
+                $.fn.dataTable.ext.buttons.excelHtml5.available(dt, config) ?
+                  $.fn.dataTable.ext.buttons.excelHtml5.action.call(self, e, dt, button, config) : null;
+              } else if (button[0].className.indexOf('buttons-csv') >= 0) {
+                $.fn.dataTable.ext.buttons.csvHtml5.available(dt, config) ?
+                  $.fn.dataTable.ext.buttons.csvHtml5.action.call(self, e, dt, button, config) : null;
+              } else if (button[0].className.indexOf('buttons-print') >= 0) {
+                $.fn.dataTable.ext.buttons.print.action.call(self, e, dt, button, config);
+              }
+              dt.one('preXhr', function (e, s, data) {
+                settings._iDisplayStart = oldStart;
+                data.start = oldStart;
+              });
+              setTimeout(dt.ajax.reload, 0);
+              return false;
+            });
+          });
+          dt.ajax.reload();
+        }
+
+        var isAdmin = <%= currentUser.hak_akses === 'admin' ? 'true' : 'false' %>;
+        var exportCols = isAdmin ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        var dtColumns = [
+            {
+              data: 'no_nota',
+              render: function (data, type, row) {
+                if (row.tipe === 'keluar') {
+                  return '<span class="font-monospace text-danger">' + escapeHtml(data || '-') + '</span>';
+                }
+                return '<span class="font-monospace text-info">' + escapeHtml(data || '-') + '</span>';
+              }
+            },
+            {
+              data: 'tanggal_bayar',
+              render: function (data) { return data ? new Date(data).toLocaleDateString('id-ID') : '-'; }
+            },
+            {
+              data: 'pelanggan_nama',
+              render: function (data) { return escapeHtml(data || '-'); }
+            },
+            {
+              data: 'sales_nama',
+              render: function (data) { return escapeHtml(data || '-'); }
+            },
+            {
+              data: 'subtotal',
+              render: function (data, type, row) {
+                if (row.tipe === 'keluar') {
+                  return '<span class="fw-bold text-danger">- ' + fmtRp(row.jumlah) + '</span>';
+                }
+                var isFullPayment = row.kategori === 'pembayaran_lunas';
+                var cls = isFullPayment ? ' fw-bold text-success' : '';
+                return '<span class="' + cls + '">' + fmtRp(data) + '</span>';
+              }
+            },
+            {
+              data: 'dp',
+              render: function (data, type, row) {
+                if (row.tipe === 'keluar') return '-';
+                if (parseFloat(data) <= 0) return '-';
+                var isDP = row.kategori === 'down_payment';
+                var cls = isDP ? ' fw-bold text-success' : '';
+                return '<span class="' + cls + '">' + fmtRp(data) + '</span>';
+              }
+            },
+            {
+              data: 'kategori',
+              orderable: false,
+              render: function (data, type, row) {
+                if (row.tipe === 'keluar') return '-';
+                if (data === 'pelunasan') {
+                  return '<span class="fw-bold text-success">' + fmtRp(row.jumlah) + '</span>';
+                }
+                return '-';
+              }
+            },
+            {
+              data: 'metode_bayar',
+              orderable: false,
+              render: function (data, type, row) {
+                if (!data) return '<span class="text-muted">-</span>';
+                var isCash = data.toLowerCase() === 'cash';
+                return '<span class="badge ' + (isCash ? 'bg-success' : 'bg-primary') + '">' + escapeHtml(data) + '</span>';
+              }
+            },
+            {
+              data: 'bpjs',
+              render: function (data, type, row) {
+                if (row.tipe === 'keluar') return '-';
+                return parseFloat(data) > 0 ? fmtRp(data) : '-';
+              }
+            },
+            {
+              data: 'kategori',
+              render: function (data) {
+                if (data === 'retur_penjualan') return '<span class="badge bg-danger">Retur</span>';
+                if (data === 'pembayaran_lunas') return '<span class="badge bg-success">Pembayaran Penuh</span>';
+                if (data === 'down_payment') return '<span class="badge bg-primary">DP - Belum Lunas</span>';
+                return '<span class="badge bg-teal text-white" style="background-color:#20c997">Pelunasan Hutang</span>';
+              }
+            }
+        ];
+
+        if (isAdmin) {
+            dtColumns.push({
+              data: 'jumlah',
+              render: function (data, type, row) {
+                if (row.tipe === 'keluar') {
+                  return '<span class="fw-bold text-danger">- ' + fmtRp(data) + '</span>';
+                }
+                return '<span class="fw-bold text-success">' + fmtRp(data) + '</span>';
+              }
+            });
+        }
+
+        dtColumns.push({
+            data: null,
+            orderable: false,
+            render: function (data, type, row) {
+              if (row.referensi_tipe === 'penjualan_retur') {
+                return '<button class="btn btn-sm btn-outline-danger" onclick="showReturDetail(' + row.referensi_id + ')" title="Detail Retur"><i class="bi bi-eye"></i></button>';
+              }
+              return '<button class="btn btn-sm btn-outline-info" onclick="showDetail(' + row.penjualan_id + ')" title="Detail"><i class="bi bi-eye"></i></button>';
+            }
+        });
+
+        $('#tblKas').DataTable({
+          serverSide: true,
+          processing: true,
+          ajax: {
+            url: '/laporan/kas/dt',
+            data: function (d) {
+              d.from = $('#filterFrom').val();
+              d.to = $('#filterTo').val();
+              d.sales_id = $('#filterSales').val();
+            }
+          },
+          order: [[1, 'desc']],
+          lengthMenu: [[10, 50, 100, -1], [10, 50, 100, "All"]],
+          layout: {
+            topStart: {
+              pageLength: {},
+              buttons: {}
+            },
+            topEnd: 'search',
+            bottomStart: 'info',
+            bottomEnd: 'paging'
+          },
+          buttons: [
+            {
+              extend: 'excelHtml5',
+              text: '<i class="bi bi-file-earmark-excel"></i> Excel',
+              className: 'btn btn-success btn-sm',
+              action: newExportAction,
+              exportOptions: { columns: exportCols, orthogonal: 'export' }
+            },
+            {
+              extend: 'csvHtml5',
+              text: '<i class="bi bi-filetype-csv"></i> CSV',
+              className: 'btn btn-info btn-sm',
+              action: newExportAction,
+              exportOptions: { columns: exportCols, orthogonal: 'export' }
+            },
+            {
+              extend: 'print',
+              text: '<i class="bi bi-printer"></i> Print',
+              className: 'btn btn-secondary btn-sm',
+              exportOptions: { columns: exportCols, orthogonal: 'export' }
+            }
+          ],
+          columns: dtColumns,
+          language: dtLanguageID
+        });
+      });
+
+      function reloadKas() {
+        var params = new URLSearchParams();
+        if ($('#filterFrom').val()) params.set('from', $('#filterFrom').val());
+        if ($('#filterTo').val()) params.set('to', $('#filterTo').val());
+        if ($('#filterSales').val()) params.set('sales_id', $('#filterSales').val());
+        window.location.href = '/laporan/kas?' + params.toString();
+      }
+
+      function resetFilter() {
+        window.location.href = '/laporan/kas';
+      }
+
+      function fmtRp(v) { return 'Rp ' + Number(v || 0).toLocaleString('id-ID'); }
+
+      function showDetail(id) {
+        document.querySelector('#detailModal .modal-title').textContent = 'Detail Penjualan';
+        var myModal = new bootstrap.Modal(document.getElementById('detailModal'));
+        myModal.show();
+        $('#detailBody').html('<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>');
+
+        $.get('/penjualan/' + id, function (res) {
+          if (!res.success) {
+            $('#detailBody').html('<div class="alert alert-danger">Gagal memuat detail.</div>');
+            return;
+          }
+          var d = res.data;
+          var html = '';
+          if (d.metode_bayar) {
+            var isCash = d.metode_bayar.toLowerCase() === 'cash';
+            var badgeCls = isCash ? 'bg-success' : 'bg-primary';
+            html += '<p class="mb-2"><strong>Metode Bayar:</strong> <span class="badge ' + badgeCls + '">' + escapeHtml(d.metode_bayar.toUpperCase()) + '</span></p>';
+          }
+          html += '<table class="table table-sm table-bordered"><thead><tr><th>Barang</th><th>Kategori</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead><tbody>';
+          d.detail.forEach(function (item) {
+            var itemName = item.nama_barang || item.keterangan || '-';
+            html += '<tr>';
+            html += '<td>' + itemName + '</td>';
+            html += '<td>' + (item.kategori_nama || '-') + '</td>';
+            html += '<td>' + (item.jumlah || 0) + '</td>';
+            html += '<td>' + fmtRp(item.harga) + '</td>';
+            html += '<td>' + fmtRp((item.harga || 0) * (item.jumlah || 0)) + '</td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+          $('#detailBody').html(html);
+        }).fail(function () {
+          $('#detailBody').html('<div class="alert alert-danger">Terjadi kesalahan.</div>');
+        });
+      }
+
+      function showReturDetail(id) {
+        document.querySelector('#detailModal .modal-title').textContent = 'Detail Retur Penjualan';
+        var myModal = new bootstrap.Modal(document.getElementById('detailModal'));
+        myModal.show();
+        $('#detailBody').html('<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>');
+
+        $.get('/penjualan-retur/' + id, function (res) {
+          if (!res.success) {
+            $('#detailBody').html('<div class="alert alert-danger">Gagal memuat detail.</div>');
+            return;
+          }
+          var d = res.data;
+          var html = '<table class="table table-sm mb-0">';
+          html += '<tr><td class="text-muted">Kode Retur</td><td class="font-monospace text-danger">' + d.kode_retur + '</td></tr>';
+          html += '<tr><td class="text-muted">No Nota Asal</td><td class="font-monospace">' + (d.no_nota || '-') + '</td></tr>';
+          html += '<tr><td class="text-muted">Tanggal Retur</td><td>' + new Date(d.tanggal_retur).toLocaleDateString('id-ID') + '</td></tr>';
+          html += '</table>';
+          if (d.detail && d.detail.length > 0) {
+            html += '<hr><h6 class="small fw-bold">Item Retur</h6>';
+            html += '<table class="table table-sm table-bordered"><thead><tr><th>Tipe</th><th>Barang</th><th>Qty</th><th>Harga</th></tr></thead><tbody>';
+            d.detail.forEach(function (item) {
+              var tipe = item.tipe === 'frame' ? 'Frame' : item.tipe === 'lensa_l' ? 'Lensa L' : 'Lensa R';
+              html += '<tr><td>' + tipe + '</td><td>' + (item.nama_barang || '-') + '</td><td>' + item.jumlah + '</td><td>' + fmtRp(item.harga) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+          }
+          html += '<hr><div class="d-flex justify-content-between"><strong>Total Retur</strong><strong class="text-danger">' + fmtRp(d.total_retur) + '</strong></div>';
+          $('#detailBody').html(html);
+        }).fail(function () {
+          $('#detailBody').html('<div class="alert alert-danger">Terjadi kesalahan.</div>');
+        });
+      }
+    </script>
+
+    <% if (currentUser.hak_akses === 'admin') { %>
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/plugins/exporting.js"></script>
+    <script>
+      (function () {
+        var root = am5.Root.new("kasChart");
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        var exporting = am5plugins_exporting.Exporting.new(root, {
+          menu: am5plugins_exporting.ExportingMenu.new(root, {}),
+          filePrefix: "Laporan_Kas"
+        });
+
+        root.numberFormatter.setAll({
+          numberFormat: "#,###",
+          numericFields: ["valueY"]
+        });
+
+        var chart = root.container.children.push(am5xy.XYChart.new(root, {
+          panX: false,
+          panY: false,
+          wheelX: "panX",
+          wheelY: "zoomX",
+          layout: root.verticalLayout,
+          paddingLeft: 0
+        }));
+
+        var cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
+          behavior: "zoomX"
+        }));
+        cursor.lineY.set("visible", false);
+
+        chart.set("scrollbarX", am5xy.XYChartScrollbar.new(root, {
+          orientation: "horizontal",
+          height: 8
+        }));
+
+        var xTooltip = am5.Tooltip.new(root, {
+          getFillFromSprite: false,
+          autoTextColor: false
+        });
+        xTooltip.get("background").setAll({
+          fill: am5.color(0x343a40),
+          fillOpacity: 0.9,
+          stroke: am5.color(0x343a40)
+        });
+        xTooltip.label.setAll({
+          fill: am5.color(0xffffff)
+        });
+
+        xTooltip.label.adapters.add("text", function(text, target) {
+          if (target.dataItem) {
+            var d = target.dataItem.dataContext;
+            if (d) {
+              var str = "[bold]" + d.period + "[/]\n";
+              if (d.total_cash) str += "Cash: Rp " + Number(d.total_cash).toLocaleString('id-ID') + "\n";
+              if (d.total_transfer) str += "Transfer: Rp " + Number(d.total_transfer).toLocaleString('id-ID') + "\n";
+              if (d.total_keluar) str += "Retur: Rp " + Number(d.total_keluar).toLocaleString('id-ID') + "\n";
+              str += "------------------\n";
+              str += "[bold]Net: Rp " + Number(d.net || 0).toLocaleString('id-ID') + "[/]";
+              return str;
+            }
+          }
+          return text;
+        });
+
+        var xAxis = chart.xAxes.push(am5xy.CategoryAxis.new(root, {
+          categoryField: "period",
+          renderer: am5xy.AxisRendererX.new(root, {
+            minGridDistance: 40,
+            cellStartLocation: 0.1,
+            cellEndLocation: 0.9
+          }),
+          tooltip: xTooltip
+        }));
+        xAxis.get("renderer").labels.template.setAll({
+          rotation: -45,
+          centerY: am5.p50,
+          centerX: am5.p100,
+          fontSize: 11
+        });
+
+
+        var yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+          renderer: am5xy.AxisRendererY.new(root, {}),
+          min: 0
+        }));
+        yAxis.get("renderer").labels.template.adapters.add("text", function (text, target) {
+          var val = target.dataItem ? target.dataItem.get("value") : 0;
+          if (val == null || val === 0) return "Rp 0";
+          if (Math.abs(val) >= 1000000) return "Rp " + (val / 1000000).toLocaleString('id-ID', {maximumFractionDigits: 1}) + " Jt";
+          if (Math.abs(val) >= 1000) return "Rp " + (val / 1000).toLocaleString('id-ID', {maximumFractionDigits: 0}) + " Rb";
+          return "Rp " + val.toLocaleString('id-ID');
+        });
+
+        // DRY function to create chart series
+        function createSeries(name, field, colorHex, isLine, isStacked, isBaseStacked) {
+          var series;
+          if (isLine) {
+            series = chart.series.push(am5xy.LineSeries.new(root, {
+              name: name, xAxis: xAxis, yAxis: yAxis, valueYField: field, categoryXField: "period"
+            }));
+            series.strokes.template.setAll({ strokeWidth: 2 });
+            series.set("stroke", am5.color(colorHex));
+            series.bullets.push(function () {
+              return am5.Bullet.new(root, {
+                sprite: am5.Circle.new(root, {
+                  radius: 4, fill: am5.color(colorHex), strokeWidth: 2,
+                  stroke: root.interfaceColors.get("background")
+                })
+              });
+            });
+          } else {
+            series = chart.series.push(am5xy.ColumnSeries.new(root, {
+              name: name, xAxis: xAxis, yAxis: yAxis, valueYField: field, categoryXField: "period", stacked: isStacked
+            }));
+            series.columns.template.setAll({
+              cornerRadiusTL: isBaseStacked ? 0 : 4,
+              cornerRadiusTR: isBaseStacked ? 0 : 4,
+              width: am5.percent(60)
+            });
+            series.setAll({ fill: am5.color(colorHex), stroke: am5.color(colorHex) });
+          }
+          series.appear(1000);
+          return series;
+        }
+
+        var cashSeries = createSeries("Cash", "total_cash", 0x28a745, false, true, true);
+        var transferSeries = createSeries("Transfer", "total_transfer", 0x6f42c1, false, true, false);
+        var returSeries = createSeries("Retur", "total_keluar", 0xdc3545, false, false, false);
+        var netSeries = createSeries("Net", "net", 0x0d6efd, true, false, false);
+
+        // Legend
+        var legend = chart.children.push(am5.Legend.new(root, {
+          centerX: am5.p50,
+          x: am5.p50
+        }));
+        legend.data.setAll(chart.series.values);
+
+        // Load data
+        var currentGroupBy = 'day';
+
+        function loadChartData() {
+          var params = {
+            from: $('#filterFrom').val(),
+            to: $('#filterTo').val(),
+            sales_id: $('#filterSales').val(),
+            group_by: currentGroupBy
+          };
+          $.get('/laporan/kas/chart', params, function (res) {
+            if (res.success && res.data) {
+              res.data.forEach(function(d) {
+                if (d.period) {
+                  var parts = d.period.split('-');
+                  if (parts.length === 3) { // YYYY-MM-DD
+                    var dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    if (!isNaN(dt)) d.period = dt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                  } else if (parts.length === 2) { // YYYY-MM
+                    var dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                    if (!isNaN(dt)) d.period = dt.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+                  }
+                }
+              });
+              xAxis.data.setAll(res.data);
+              cashSeries.data.setAll(res.data);
+              transferSeries.data.setAll(res.data);
+              returSeries.data.setAll(res.data);
+              netSeries.data.setAll(res.data);
+
+              // Update exporting file prefix based on filters
+              function fmtNameDate(dStr) {
+                if (!dStr) return "";
+                var dt = new Date(dStr);
+                if (isNaN(dt)) return "";
+                var m = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+                return dt.getFullYear() + "_" + m[dt.getMonth()] + "_" + String(dt.getDate()).padStart(2, '0');
+              }
+              var fromFmt = fmtNameDate(params.from);
+              var toFmt = fmtNameDate(params.to);
+              var pref = "Laporan_Kas";
+              if (fromFmt && toFmt && fromFmt === toFmt) {
+                pref += "_" + fromFmt;
+              } else if (fromFmt && toFmt) {
+                pref += "_" + fromFmt + "_to_" + toFmt;
+              } else if (fromFmt) {
+                pref += "_" + fromFmt;
+              }
+              exporting.set("filePrefix", pref);
+            }
+          });
+        }
+
+        // Group by buttons
+        $('#chartGroupBy').on('click', 'button', function () {
+          $('#chartGroupBy button').removeClass('active');
+          $(this).addClass('active');
+          currentGroupBy = $(this).data('group');
+          loadChartData();
+        });
+
+        // Expose for reloadKas
+        window.loadChartData = loadChartData;
+
+        // Initial load
+        loadChartData();
+
+        // Animate on load
+        chart.appear(1000, 100);
+      })();
+    </script>
+    <% } %>
+
+    <%- include('../partials/bottom') %>

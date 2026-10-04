@@ -1,0 +1,417 @@
+<% function fmtRp(v) { return 'Rp ' + Number(v||0).toLocaleString('id-ID'); } function fmtDate(d) { return d ? new
+  Date(d).toLocaleDateString('id-ID') : '-' ; } %>
+  <%- include('../partials/top', { title, activePage }) %>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex gap-2 align-items-center">
+        <label class="mb-0 fw-bold">Filter:</label>
+        <select id="filterStatus" class="form-select form-select-sm" style="width:130px">
+          <option value="">Semua Status</option>
+          <option value="lunas">Lunas</option>
+          <option value="dp">DP</option>
+          <option value="belum_lunas">Belum Lunas</option>
+        </select>
+        <input type="date" id="filterStartDate" class="form-control form-control-sm" style="width:130px">
+        <span>-</span>
+        <input type="date" id="filterEndDate" class="form-control form-control-sm" style="width:130px">
+        <button class="btn btn-sm btn-secondary" onclick="reloadTable()"><i class="bi bi-search"></i> Terapkan</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="resetFilter()"><i class="bi bi-x-circle"></i>
+          Reset</button>
+      </div>
+      <a href="/penjualan/baru" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Penjualan Baru</a>
+    </div>
+
+    <div class="card p-3">
+      <table id="tblPenjualan" class="table table-hover mb-0" style="width:100%">
+        <thead>
+          <tr>
+            <th>Tanggal</th>
+            <th>No. Nota</th>
+            <th>Pelanggan</th>
+            <th>Total</th>
+            <th>BPJS</th>
+            <th>DP</th>
+            <th>Metode Bayar</th>
+            <th>Sisa Bayar</th>
+            <th>Status</th>
+            <th>Sales</th>
+            <th style="width:60px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+
+
+    <script>
+      $(function () {
+        var warnings = sessionStorage.getItem('penjualan_warnings');
+        if (warnings) {
+          try {
+            JSON.parse(warnings).forEach(function (w) { showToast(w, 'warning'); });
+          } catch (e) { }
+          sessionStorage.removeItem('penjualan_warnings');
+        }
+
+        var d = new Date();
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        $('#filterStartDate').val(y + '-' + m + '-01');
+        $('#filterEndDate').val(y + '-' + m + '-' + day);
+
+        function newExportAction(e, dt, button, config) {
+          var self = this;
+          var oldStart = dt.settings()[0]._iDisplayStart;
+          dt.one('preXhr', function (e, s, data) {
+            data.start = 0;
+            data.length = -1;
+            dt.one('preDraw', function (e, settings) {
+              if (button[0].className.indexOf('buttons-excel') >= 0) {
+                $.fn.dataTable.ext.buttons.excelHtml5.available(dt, config) ?
+                  $.fn.dataTable.ext.buttons.excelHtml5.action.call(self, e, dt, button, config) : null;
+              } else if (button[0].className.indexOf('buttons-csv') >= 0) {
+                $.fn.dataTable.ext.buttons.csvHtml5.available(dt, config) ?
+                  $.fn.dataTable.ext.buttons.csvHtml5.action.call(self, e, dt, button, config) : null;
+              } else if (button[0].className.indexOf('buttons-print') >= 0) {
+                $.fn.dataTable.ext.buttons.print.action.call(self, e, dt, button, config);
+              }
+              dt.one('preXhr', function (e, s, data) {
+                settings._iDisplayStart = oldStart;
+                data.start = oldStart;
+              });
+              setTimeout(dt.ajax.reload, 0);
+              return false;
+            });
+          });
+          dt.ajax.reload();
+        }
+
+        var table = $('#tblPenjualan').DataTable({
+          serverSide: true,
+          processing: true,
+          ajax: {
+            url: '/penjualan/dt',
+            data: function (d) {
+              d.start_date = $('#filterStartDate').val();
+              d.end_date = $('#filterEndDate').val();
+              d.status = $('#filterStatus').val();
+            }
+          },
+          order: [[0, 'desc']],
+          lengthMenu: [[10, 50, 100, -1], [10, 50, 100, "All"]],
+          layout: {
+            topStart: {
+              pageLength: {},
+              buttons: {}
+            },
+            topEnd: 'search',
+            bottomStart: 'info',
+            bottomEnd: 'paging'
+          },
+          buttons: [
+            {
+              extend: 'excelHtml5',
+              text: '<i class="bi bi-file-earmark-excel"></i> Excel',
+              className: 'btn btn-success btn-sm',
+              action: newExportAction,
+              exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7, 8], orthogonal: 'export' }
+            },
+            {
+              extend: 'csvHtml5',
+              text: '<i class="bi bi-filetype-csv"></i> CSV',
+              className: 'btn btn-info btn-sm',
+              action: newExportAction,
+              exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7, 8], orthogonal: 'export' }
+            },
+            {
+              extend: 'print',
+              text: '<i class="bi bi-printer"></i> Print',
+              className: 'btn btn-secondary btn-sm',
+              exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7, 8], orthogonal: 'export' }
+            }
+          ],
+          columns: [
+            {
+              data: 'order_date',
+              render: function (data) { return data ? new Date(data).toLocaleDateString('id-ID') : '-'; }
+            },
+            {
+              data: 'no_nota',
+              render: function (data) { return '<span class="font-monospace text-info">' + escapeHtml(data) + '</span>'; }
+            },
+            {
+              data: 'pelanggan_nama',
+              render: function (data) { return escapeHtml(data || '-'); }
+            },
+            {
+              data: 'total',
+              className: 'fw-bold',
+              render: function (data) { return fmtRp(data); }
+            },
+            {
+              data: 'bpjs',
+              render: function (data) { return fmtRp(data); }
+            },
+            {
+              data: 'dp',
+              render: function (data) { return fmtRp(data); }
+            },
+            {
+              data: 'metode_bayar',
+              render: function (data, type, row) {
+                if (!data) return '<span class="text-muted">-</span>';
+                var isCash = data.toLowerCase() === 'cash';
+                return '<span class="badge ' + (isCash ? 'bg-success' : 'bg-primary') + '">' + escapeHtml(data) + '</span>';
+              }
+            },
+            {
+              data: null,
+              className: 'text-danger fw-bold',
+              render: function (data, type, row) {
+                if (row.status_bayar === 'dp') {
+                  return fmtRp(parseFloat(row.total || 0) - parseFloat(row.dp || 0));
+                }
+                return '-';
+              }
+            },
+            {
+              data: 'status_bayar',
+              render: function (data, type, row) {
+                if (type !== 'display') {
+                  if (data === 'lunas') return 'Lunas';
+                  if (data === 'dp') return 'DP';
+                  return 'Belum Lunas';
+                }
+                if (data === 'lunas') return '<span class="badge bg-success">✅ Lunas</span>';
+                if (data === 'dp') return '<a href="/pembayaran-penjualan/bayar/' + row.id + '" class="badge bg-warning text-dark text-decoration-none">⏳ DP</a>';
+                return '<a href="/pembayaran-penjualan/bayar/' + row.id + '" class="badge bg-danger text-decoration-none">❌ Belum Lunas</a>';
+              }
+            },
+            {
+              data: 'sales_nama',
+              render: function (data) { return escapeHtml(data || '-'); }
+            },
+            {
+              data: null,
+              orderable: false,
+              className: 'text-center',
+              render: function (data, type, row) {
+                var html = '<div class="dropdown">';
+                html += '<button class="btn btn-sm btn-outline-secondary border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">';
+                html += '<i class="bi bi-three-dots-vertical"></i>';
+                html += '</button>';
+                html += '<ul class="dropdown-menu dropdown-menu-end shadow-sm">';
+                html += '<li><a class="dropdown-item" href="#" onclick="event.preventDefault(); showDetail(' + row.id + ')"><i class="bi bi-eye me-2 text-info"></i>Lihat Detail</a></li>';
+                html += '<li><a class="dropdown-item" href="#" onclick="event.preventDefault(); printNota(' + row.id + ')"><i class="bi bi-printer me-2 text-secondary"></i>Print Nota</a></li>';
+                if (row.status_bayar !== 'lunas') {
+                  html += '<li><a class="dropdown-item" href="/pembayaran-penjualan/bayar/' + row.id + '"><i class="bi bi-wallet2 me-2 text-success"></i>Bayar</a></li>';
+                }
+                html += '<li><a class="dropdown-item" href="#" onclick="event.preventDefault(); showUbahMetode(' + row.id + ')"><i class="bi bi-credit-card me-2 text-primary"></i>Set Metode Bayar</a></li>';
+                <% if (currentUser && currentUser.hak_akses === 'admin') { %>
+                  html += '<li><hr class="dropdown-divider"></li>';
+                  html += '<li><a class="dropdown-item" href="/penjualan-retur/baru?penjualan_id=' + row.id + '"><i class="bi bi-arrow-return-left me-2 text-warning"></i>Retur</a></li>';
+                  html += '<li><a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); confirmDelete(' + row.id + ', \'/penjualan/' + row.id + '\')"><i class="bi bi-trash me-2"></i>Hapus</a></li>';
+                <% } %>
+                html += '</ul></div>';
+                return html;
+              }
+            }
+          ],
+          language: dtLanguageID
+        });
+
+      });
+
+      function reloadTable() {
+        $('#tblPenjualan').DataTable().ajax.reload();
+      }
+
+      function resetFilter() {
+        $('#filterStatus').val('');
+        $('#filterStartDate').val('');
+        $('#filterEndDate').val('');
+        $('#tblPenjualan').DataTable().ajax.reload();
+      }
+
+      function printNota(id) {
+        $.get('/penjualan/' + id, function (res) {
+          if (res.success) printNotaData(res.data);
+        });
+      }
+
+      function showUbahMetode(id) {
+        $('#ubahMetodeForm')[0].reset();
+        $('#ubahMetodeId').val(id);
+        var myModal = new bootstrap.Modal(document.getElementById('ubahMetodeModal'));
+        myModal.show();
+      }
+
+      $(document).ready(function () {
+        $('#ubahMetodeForm').on('submit', function (e) {
+          e.preventDefault();
+          var id = $('#ubahMetodeId').val();
+          var metodeId = $('#ubahMetodeIdSelect').val();
+          if (!metodeId) return alert('Pilih metode pembayaran');
+
+          var btn = $(this).find('button[type="submit"]');
+          var originalText = btn.html();
+          btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menyimpan...').prop('disabled', true);
+
+          $.ajax({
+            url: '/penjualan/' + id + '/metode-pembayaran',
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ metode_bayar_id: metodeId }),
+            success: function (res) {
+              if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('ubahMetodeModal')).hide();
+                reloadTable();
+              } else {
+                alert(res.error || 'Terjadi kesalahan');
+                btn.html(originalText).prop('disabled', false);
+              }
+            },
+            error: function (err) {
+              alert(err.responseJSON ? err.responseJSON.error : 'Terjadi kesalahan');
+              btn.html(originalText).prop('disabled', false);
+            }
+          });
+        });
+      });
+
+      function showDetail(id) {
+        var myModal = new bootstrap.Modal(document.getElementById('detailModal'));
+        myModal.show();
+        $('#detailBody').html('<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>');
+
+        $.get('/penjualan/' + id, function (res) {
+          if (!res.success) {
+            $('#detailBody').html('<div class="alert alert-danger">Gagal memuat detail.</div>');
+            return;
+          }
+          var d = res.data;
+
+          // Rincian Barang
+          var html = '<h6 class="fw-bold mb-3">Detail Barang</h6>';
+          if (d.metode_bayar) {
+            var isCash = d.metode_bayar.toLowerCase() === 'cash';
+            var badgeCls = isCash ? 'bg-success' : 'bg-primary';
+            html += '<p class="mb-2"><strong>Metode Bayar:</strong> <span class="badge ' + badgeCls + '">' + escapeHtml(d.metode_bayar.toUpperCase()) + '</span></p>';
+          }
+          html += '<table class="table table-sm table-bordered"><thead><tr class="bg-light"><th>Barang (Kategori)</th><th>Barcode</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead><tbody>';
+          d.detail.forEach(function (item) {
+            var itemName = item.nama_barang || item.keterangan || item.barang_nama || '-';
+            var sph = item.b_sph_r || item.b_sph_l || '';
+            var cyl = item.b_cyl_r || item.b_cyl_l || '';
+            var add = item.b_add_r || item.b_add_l || '';
+            if (sph || cyl || add) {
+              itemName += ' <span class="text-muted small">(SPH : ' + sph + ' CYL : ' + cyl + ' ADD : ' + add + ')</span>';
+            }
+            var categoryName = item.kategori_nama ? ' <span class="badge bg-info bg-opacity-25 text-info">' + item.kategori_nama + '</span>' : '';
+
+            html += '<tr>';
+            html += '<td>' + itemName + categoryName + '</td>';
+            html += '<td class="font-monospace">' + (item.barcode_id || '-') + '</td>';
+            html += '<td>' + (item.jumlah || 0) + '</td>';
+            html += '<td>' + fmtRp(item.harga) + '</td>';
+            html += '<td>' + fmtRp((item.harga || 0) * (item.jumlah || 0)) + '</td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+
+          // Rincian Resep
+          var hasResepR = d.sph_r || d.cyl_r || d.axis_r || d.add_r;
+          var hasResepL = d.sph_l || d.cyl_l || d.axis_l || d.add_l;
+
+          if (hasResepR || hasResepL || d.pd) {
+            html += '<h6 class="fw-bold mt-4 mb-3">Resep Kacamata</h6>';
+            html += '<table class="table table-sm table-bordered text-center">';
+            html += '<thead class="bg-light"><tr><th>Mata</th><th>SPH</th><th>CYL</th><th>AXIS</th><th>ADD</th></tr></thead><tbody>';
+            if (hasResepR) {
+              html += '<tr><td><strong>Kanan (R)</strong></td>';
+              html += '<td>' + (d.sph_r || '-') + '</td>';
+              html += '<td>' + (d.cyl_r || '-') + '</td>';
+              html += '<td>' + (d.axis_r || '-') + '</td>';
+              html += '<td>' + (d.add_r || '-') + '</td></tr>';
+            }
+            if (hasResepL) {
+              html += '<tr><td><strong>Kiri (L)</strong></td>';
+              html += '<td>' + (d.sph_l || '-') + '</td>';
+              html += '<td>' + (d.cyl_l || '-') + '</td>';
+              html += '<td>' + (d.axis_l || '-') + '</td>';
+              html += '<td>' + (d.add_l || '-') + '</td></tr>';
+            }
+            html += '</tbody></table>';
+
+            if (d.pd) {
+              html += '<p class="mt-2 mb-0"><strong>PD:</strong> ' + d.pd + '</p>';
+            }
+          }
+
+          $('#detailBody').html(html);
+        }).fail(function () {
+          $('#detailBody').html('<div class="alert alert-danger">Terjadi kesalahan.</div>');
+        });
+      }
+
+      function fmtRp(v) { return 'Rp ' + Number(v || 0).toLocaleString('id-ID'); }
+
+    </script>
+
+    <div class="modal fade" id="detailModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Detail Penjualan</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="detailBody">
+            <div class="text-center">
+              <div class="spinner-border text-primary" role="status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ubah Metode Modal -->
+    <div class="modal fade" id="ubahMetodeModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content border-0 shadow-sm">
+          <form id="ubahMetodeForm">
+            <div class="modal-header bg-light border-0">
+              <h5 class="modal-title fw-bold">Ubah Metode Pembayaran</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" id="ubahMetodeId">
+              <div class="mb-3">
+                <label class="form-label text-muted small fw-bold text-uppercase">Metode Pembayaran</label>
+                <select class="form-select" id="ubahMetodeIdSelect" required>
+                  <option value="">-- Pilih Metode --</option>
+                  <% if (typeof metodePembayaran !=='undefined' ) { %>
+                    <% metodePembayaran.forEach(function(m) { %>
+                      <option value="<%= m.id %>">
+                        <%= m.nama %> (<%= m.tipe.toUpperCase() %>)
+                      </option>
+                      <% }) %>
+                        <% } %>
+                </select>
+              </div>
+              <div class="alert alert-warning mb-0 border-0" style="background-color: #fff3cd; color: #856404;">
+                <i class="bi bi-exclamation-triangle me-2"></i> Perubahan ini akan meng-update ledger kas secara
+                otomatis. Hanya gunakan untuk data lama yang kosong.
+              </div>
+            </div>
+            <div class="modal-footer border-0 bg-light">
+              <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Batal</button>
+              <button type="submit" class="btn btn-primary px-4 shadow-sm">Simpan</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <%- include('../partials/bottom') %>
