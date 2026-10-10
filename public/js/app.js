@@ -333,10 +333,108 @@ function printNotaBrowser(lines) {
   setTimeout(() => { w.print(); }, 300);
 }
 
-// Print barcode labels — shared by pembelian & barang
-// items: [{ barcode_id, nama_barang, harga_jual, jumlah }]
-// format: 'double' (same item on both halves) | 'single' (sequential left-right-left-right)
-function printBarcodesFromItems(items, format) {
+// TSPL (TSC Programming Language) Formatter for Barcode Labels (73mm x 19mm)
+function generateTsplBarcodes(items, format) {
+  if (!items || !items.length) return '';
+  format = format || 'double';
+
+  var pairs = [];
+
+  if (format === 'double') {
+    // Each item is duplicated on both halves for the given quantity
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var qty = parseInt(it.jumlah, 10);
+      if (isNaN(qty) || qty < 1) qty = 1;
+      for (var q = 0; q < qty; q++) {
+        pairs.push({ left: it, right: it });
+      }
+    }
+  } else {
+    // Single: expand all items by qty, then pair sequentially
+    var expanded = [];
+    for (var j = 0; j < items.length; j++) {
+      var item = items[j];
+      var count = parseInt(item.jumlah, 10);
+      if (isNaN(count) || count < 1) count = 1;
+      for (var k = 0; k < count; k++) {
+        expanded.push(item);
+      }
+    }
+    for (var m = 0; m < expanded.length; m += 2) {
+      pairs.push({
+        left: expanded[m],
+        right: (m + 1 < expanded.length) ? expanded[m + 1] : null
+      });
+    }
+  }
+
+  if (pairs.length === 0) return '';
+
+  var commands = [];
+  commands.push('SIZE 73 mm, 19 mm');
+  commands.push('GAP 2 mm, 0 mm');
+  commands.push('DIRECTION 1');
+  commands.push('REFERENCE 0,0');
+
+  function sanitize(str) {
+    return (str || '').toString().replace(/["\\]/g, '').replace(/[\r\n]/g, ' ').trim();
+  }
+
+  function renderHalf(item, startX) {
+    if (!item) return [];
+    var halfCmds = [];
+    var rawName = (item.nama_barang || '-').toUpperCase();
+    var cleanName = sanitize(rawName);
+    var cleanBarcode = sanitize(item.barcode_id || '');
+    var priceStr = '- Rp ' + Number(item.harga_jual || 0).toLocaleString('id-ID');
+
+    // Name: font 2 (12x20) if short, font 1 (8x12) if long
+    if (cleanName.length > 22) {
+      halfCmds.push('TEXT ' + startX + ',14,"1",0,1,1,"' + cleanName.substring(0, 33) + '"');
+    } else {
+      halfCmds.push('TEXT ' + startX + ',10,"2",0,1,1,"' + cleanName.substring(0, 22) + '"');
+    }
+
+    // Barcode: Code 128
+    if (cleanBarcode) {
+      var approxWidth = (cleanBarcode.length + 3) * 11 + 15;
+      var offset = 0;
+      if (approxWidth < 270) {
+        offset = Math.floor((270 - approxWidth) / 2);
+      }
+      var barcodeX = startX + offset;
+      halfCmds.push('BARCODE ' + barcodeX + ',36,"128",48,0,0,1,1,"' + cleanBarcode + '"');
+    }
+
+    // Bottom line: barcode left, price right
+    halfCmds.push('TEXT ' + startX + ',92,"1",0,1,1,"' + cleanBarcode + '"');
+    var priceWidth = priceStr.length * 8;
+    var priceX = Math.max(startX + 120, (startX + 270) - priceWidth);
+    halfCmds.push('TEXT ' + priceX + ',92,"1",0,1,1,"' + priceStr + '"');
+
+    return halfCmds;
+  }
+
+  for (var p = 0; p < pairs.length; p++) {
+    var pair = pairs[p];
+    commands.push('CLS');
+    // Left half
+    var leftCmds = renderHalf(pair.left, 16);
+    for (var l = 0; l < leftCmds.length; l++) commands.push(leftCmds[l]);
+    // Right half
+    if (pair.right) {
+      var rightCmds = renderHalf(pair.right, 312);
+      for (var r = 0; r < rightCmds.length; r++) commands.push(rightCmds[r]);
+    }
+    commands.push('PRINT 1,1');
+  }
+
+  return commands.join('\r\n') + '\r\n';
+}
+
+// Fallback: Cetak Barcode via Browser (HTML dialog)
+function printBarcodesBrowser(items, format) {
   format = format || 'double';
 
   function makeHalf(item) {
@@ -353,7 +451,6 @@ function printBarcodesFromItems(items, format) {
 
   var labels = '';
   if (format === 'double') {
-    // Double: same item duplicated on both halves
     items.forEach(function (item) {
       var halfHtml = makeHalf(item);
       for (var q = 0; q < (item.jumlah || 1); q++) {
@@ -361,7 +458,6 @@ function printBarcodesFromItems(items, format) {
       }
     });
   } else {
-    // Single: expand all items by qty, then pair sequentially left-right
     var allLabels = [];
     items.forEach(function (item) {
       for (var q = 0; q < (item.jumlah || 1); q++) {
@@ -381,6 +477,10 @@ function printBarcodesFromItems(items, format) {
   }
 
   var w = window.open('', '_blank', 'width=600,height=400');
+  if (!w) {
+    alert("Popup diblokir browser. Harap izinkan popup untuk mencetak barcode.");
+    return;
+  }
   var html = [
     '<!DOCTYPE html>',
     '<html><head><title>Barcode</title>',
@@ -388,7 +488,7 @@ function printBarcodesFromItems(items, format) {
     '<style>',
     '@page { size: 73mm 19mm; margin: 0; }',
     '* { margin: 0; padding: 0; box-sizing: border-box; }',
-    'body { background: #fff; color: #000; font-family: Arial, sans-serif; margin: 0;  margin-top: -2px; }',
+    'body { background: #fff; color: #000; font-family: Arial, sans-serif; margin: 0; margin-top: -2px; }',
     '.label { width: 100%; height: 100vh; display: flex; page-break-after: always; }',
     '.half { width: 48%; height: 100%; display: flex; flex-direction: column; justify-content: flex-start; padding: 0.5mm 2mm; overflow: hidden; }',
     '.label .half:first-child { margin-right: 4%; }',
@@ -410,6 +510,240 @@ function printBarcodesFromItems(items, format) {
   w.document.write(html);
   w.document.close();
 }
+
+// Print barcode labels — shared by pembelian & barang
+// items: [{ barcode_id, nama_barang, harga_jual, jumlah }]
+// format: 'double' (same item on both halves) | 'single' (sequential left-right-left-right)
+async function printBarcodesFromItems(items, format, btn) {
+  format = format || 'double';
+  var origHtml = null;
+  if (btn) {
+    origHtml = $(btn).html();
+    $(btn).addClass('disabled').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Mencetak...');
+  }
+
+  try {
+    const disableLocalPrint = localStorage.getItem('LOCAL_PRINT_SERVICE') === '0';
+    const printHost = localStorage.getItem('print_service_host') || 'http://localhost:3000';
+    const barcodePrinter = localStorage.getItem('barcode_printer_name') || 'BARCODE';
+
+    if (!disableLocalPrint) {
+      const tsplData = generateTsplBarcodes(items, format);
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 3500) : null;
+
+      try {
+        const response = await fetch(printHost + '/api/print-barcode', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: tsplData,
+            items: items,
+            format: format,
+            printerName: barcodePrinter
+          }),
+          signal: controller ? controller.signal : undefined
+        });
+
+        if (timeoutId) clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            showToast('Barcode berhasil dikirim ke printer (' + barcodePrinter + ')!', 'success');
+            return;
+          }
+          throw new Error(result.message || 'Gagal mencetak barcode');
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.message || ('HTTP ' + response.status));
+        }
+      } catch (err) {
+        if (timeoutId) clearTimeout(timeoutId);
+        console.warn('Local print service tidak aktif atau gagal:', err.message);
+
+        // Jika error karena printer share tidak ditemukan di Windows, beri opsi ganti nama printer
+        if (err.message && (err.message.toLowerCase().includes('printer') || err.message.toLowerCase().includes('share') || err.message.toLowerCase().includes('gagal'))) {
+          var promptMsg = 'Gagal mencetak ke printer barcode "' + barcodePrinter + '".\n' +
+                          'Pastikan printer sudah di-share di Windows dengan nama yang tepat.\n\n' +
+                          'Masukkan nama share printer yang sesuai (atau batalkan untuk cetak browser):';
+          var customName = prompt(promptMsg, barcodePrinter);
+          if (customName && customName.trim() && customName.trim() !== barcodePrinter) {
+            localStorage.setItem('barcode_printer_name', customName.trim());
+            showToast('Nama printer disimpan: ' + customName.trim() + '. Mengirim ulang...', 'info');
+            return await printBarcodesFromItems(items, format, btn);
+          }
+        }
+
+        showToast('Print service (localhost:3000) tidak aktif / gagal. Menggunakan cetak browser...', 'warning');
+        printBarcodesBrowser(items, format);
+        return;
+      }
+    }
+
+    // Jika local print service dinonaktifkan di localStorage, langsung cetak lewat browser
+    printBarcodesBrowser(items, format);
+  } finally {
+    if (btn && origHtml !== null) {
+      $(btn).removeClass('disabled').prop('disabled', false).html(origHtml);
+    }
+  }
+}
+
+// Global Printer Helpers & Modal Handlers
+window.setBarcodePrinterName = function (name) {
+  if (name) localStorage.setItem('barcode_printer_name', name.trim());
+};
+window.getBarcodePrinterName = function () {
+  return localStorage.getItem('barcode_printer_name') || 'BARCODE';
+};
+window.setReceiptPrinterName = function (name) {
+  if (name) localStorage.setItem('raw_printer_name', name.trim());
+};
+window.getReceiptPrinterName = function () {
+  return localStorage.getItem('raw_printer_name') || 'LX310';
+};
+
+$(function () {
+  // Buka Modal Pengaturan Printer
+  $('#btnPrinterSettings').on('click', function () {
+    var host = localStorage.getItem('print_service_host') || 'http://localhost:3000';
+    var barcodePrinter = localStorage.getItem('barcode_printer_name') || 'BARCODE';
+    var rawPrinter = localStorage.getItem('raw_printer_name') || 'LX310';
+    var isEnabled = localStorage.getItem('LOCAL_PRINT_SERVICE') !== '0';
+
+    $('#cfgPrintHost').val(host);
+    $('#cfgBarcodePrinter').val(barcodePrinter);
+    $('#cfgRawPrinter').val(rawPrinter);
+    $('#cfgEnableLocalPrint').prop('checked', isEnabled);
+
+    // Cek koneksi ke print service
+    $('#badgePrintServiceStatus').removeClass('bg-success bg-danger').addClass('bg-secondary').text('Checking...');
+    $('#printServiceStatusText').text('Memeriksa koneksi ke ' + host + '...');
+
+    fetch(host + '/api/config', { method: 'GET', signal: AbortSignal.timeout(2500) })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.status === 'ok') {
+          $('#badgePrintServiceStatus').removeClass('bg-secondary bg-danger').addClass('bg-success').text('Terhubung');
+          $('#printServiceStatusText').text('kacamata-pos-print aktif (' + (data.service || 'Service OK') + ')');
+          // Jika belum di-set di localStorage, isi dengan default dari service
+          if (!localStorage.getItem('barcode_printer_name') && data.defaultBarcodePrinterName) {
+            $('#cfgBarcodePrinter').val(data.defaultBarcodePrinterName);
+          }
+          if (!localStorage.getItem('raw_printer_name') && data.defaultPrinterName) {
+            $('#cfgRawPrinter').val(data.defaultPrinterName);
+          }
+        } else {
+          throw new Error('Respon tidak valid');
+        }
+      })
+      .catch(function (err) {
+        $('#badgePrintServiceStatus').removeClass('bg-secondary bg-success').addClass('bg-danger').text('Offline');
+        $('#printServiceStatusText').text('Service tidak dapat dihubungi. Pastikan aplikasi print berjalan di latar belakang.');
+      });
+
+    var modal = new bootstrap.Modal(document.getElementById('modalPrinterSettings'));
+    modal.show();
+  });
+
+  // Simpan Pengaturan Printer
+  $('#btnSavePrinterSettings').on('click', function () {
+    var host = ($('#cfgPrintHost').val() || 'http://localhost:3000').trim().replace(/\/+$/, '');
+    var barcodePrinter = ($('#cfgBarcodePrinter').val() || 'BARCODE').trim();
+    var rawPrinter = ($('#cfgRawPrinter').val() || 'LX310').trim();
+    var isEnabled = $('#cfgEnableLocalPrint').is(':checked');
+
+    localStorage.setItem('print_service_host', host);
+    localStorage.setItem('barcode_printer_name', barcodePrinter);
+    localStorage.setItem('raw_printer_name', rawPrinter);
+    localStorage.setItem('LOCAL_PRINT_SERVICE', isEnabled ? '1' : '0');
+
+    showToast('Pengaturan printer berhasil disimpan!', 'success');
+    var modalEl = document.getElementById('modalPrinterSettings');
+    var modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+  });
+
+  // Test Print Barcode
+  $('#btnTestPrintBarcode').on('click', async function () {
+    var btn = this;
+    var host = ($('#cfgPrintHost').val() || 'http://localhost:3000').trim().replace(/\/+$/, '');
+    var printer = ($('#cfgBarcodePrinter').val() || 'BARCODE').trim();
+
+    var origHtml = $(btn).html();
+    $(btn).addClass('disabled').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Testing...');
+
+    var sampleItems = [
+      { barcode_id: 'TEST-0001', nama_barang: 'TEST BARCODE OPTIK', harga_jual: 150000, jumlah: 1 }
+    ];
+    var tspl = generateTsplBarcodes(sampleItems, 'double');
+
+    try {
+      const res = await fetch(host + '/api/print-barcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: tspl,
+          items: sampleItems,
+          format: 'double',
+          printerName: printer
+        }),
+        signal: AbortSignal.timeout(3500)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('Test print barcode berhasil dikirim ke ' + printer + '!', 'success');
+      } else {
+        alert('Gagal test print: ' + (data.message || ('HTTP ' + res.status)));
+      }
+    } catch (err) {
+      alert('Error saat mengirim test print: ' + err.message + '\nPastikan print service aktif dan printer di-share dengan nama "' + printer + '".');
+    } finally {
+      $(btn).removeClass('disabled').prop('disabled', false).html(origHtml);
+    }
+  });
+
+  // Test Print Nota
+  $('#btnTestPrintNota').on('click', async function () {
+    var btn = this;
+    var host = ($('#cfgPrintHost').val() || 'http://localhost:3000').trim().replace(/\/+$/, '');
+    var printer = ($('#cfgRawPrinter').val() || 'LX310').trim();
+
+    var origHtml = $(btn).html();
+    $(btn).addClass('disabled').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Testing...');
+
+    var testNota = 'TEST CETAK NOTA KACAMATA POS\r\n' +
+                   '----------------------------------------\r\n' +
+                   'Toko  : OPTIK KACAMATA LENSA PONTIANAK\r\n' +
+                   'Status: PRINTER DOT MATRIX CONNECTED\r\n' +
+                   '----------------------------------------\r\n\r\n\r\n\r\n';
+
+    try {
+      const res = await fetch(host + '/api/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: testNota,
+          printerName: printer
+        }),
+        signal: AbortSignal.timeout(3500)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('Test print nota berhasil dikirim ke ' + printer + '!', 'success');
+      } else {
+        alert('Gagal test print nota: ' + (data.message || ('HTTP ' + res.status)));
+      }
+    } catch (err) {
+      alert('Error saat mengirim test print: ' + err.message + '\nPastikan print service aktif dan printer di-share dengan nama "' + printer + '".');
+    } finally {
+      $(btn).removeClass('disabled').prop('disabled', false).html(origHtml);
+    }
+  });
+});
 
 // Loading button helpers — prevent double-click / spam
 function setBtnLoading(btn) {

@@ -1,0 +1,71 @@
+<%# Modal Pengaturan Printer Local (kacamata-pos-print) %>
+<div class="modal fade" id="modalPrinterSettings" tabindex="-1" aria-labelledby="modalPrinterSettingsLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalPrinterSettingsLabel">
+          <i class="bi bi-printer me-2 text-primary"></i>Pengaturan Printer Local
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-center justify-content-between p-2 mb-3 rounded bg-light border">
+          <div>
+            <span class="small fw-semibold d-block">Status Print Service</span>
+            <small class="text-muted" id="printServiceStatusText">Memeriksa koneksi...</small>
+          </div>
+          <span class="badge bg-secondary" id="badgePrintServiceStatus">Checking...</span>
+        </div>
+
+        <div class="mb-3">
+          <label for="cfgPrintHost" class="form-label small fw-semibold">URL Local Print Service</label>
+          <input type="text" class="form-control form-control-sm font-monospace" id="cfgPrintHost" placeholder="http://localhost:3000">
+          <div class="form-text small">Default: <code>http://localhost:3000</code> (aplikasi kacamata-pos-print).</div>
+        </div>
+
+        <div class="mb-3">
+          <label for="cfgBarcodePrinter" class="form-label small fw-semibold">
+            Nama Printer Barcode (Label Thermal / TSPL)
+          </label>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control font-monospace" id="cfgBarcodePrinter" placeholder="BARCODE atau XP-460B">
+            <button class="btn btn-outline-info" type="button" id="btnTestPrintBarcode">
+              <i class="bi bi-upc me-1"></i>Test Print
+            </button>
+          </div>
+          <div class="form-text small">
+            Nama share printer di Windows (misal: <code>BARCODE</code>, <code>XP-460B</code>, <code>Xprinter</code>).
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="cfgRawPrinter" class="form-label small fw-semibold">
+            Nama Printer Nota (Dot Matrix / LX310)
+          </label>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control font-monospace" id="cfgRawPrinter" placeholder="LX310">
+            <button class="btn btn-outline-secondary" type="button" id="btnTestPrintNota">
+              <i class="bi bi-receipt me-1"></i>Test Print
+            </button>
+          </div>
+          <div class="form-text small">
+            Nama share printer di Windows untuk nota (misal: <code>LX310</code>).
+          </div>
+        </div>
+
+        <div class="form-check form-switch mt-3 pt-2 border-top">
+          <input class="form-check-input" type="checkbox" role="switch" id="cfgEnableLocalPrint" checked>
+          <label class="form-check-label small" for="cfgEnableLocalPrint">
+            Gunakan Local Print Service langsung ke printer (Raw / TSPL)
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+        <button type="button" class="btn btn-sm btn-primary" id="btnSavePrinterSettings">
+          <i class="bi bi-check-lg me-1"></i>Simpan Pengaturan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

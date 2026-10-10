@@ -232,7 +232,7 @@
 
         $(document).on('click', '.btn-print-barcode', function () {
           var $b = $(this);
-          printBarcodesFromItems([{ barcode_id: $b.data('barcode'), nama_barang: $b.data('nama'), harga_jual: $b.data('harga'), jumlah: 1 }], 'double');
+          printBarcodesFromItems([{ barcode_id: $b.data('barcode'), nama_barang: $b.data('nama'), harga_jual: $b.data('harga'), jumlah: 1 }], 'double', this);
         });
 
         $('#btnSave').on('click', function () {

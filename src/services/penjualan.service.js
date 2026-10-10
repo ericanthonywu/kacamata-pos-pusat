@@ -58,6 +58,8 @@ exports.create = async function (data, userId) {
     }
   }
 
+  // --- Hitung subtotal + kumpulkan warning stok kosong ---
+  let subtotal = 0;
   const warnings = [];
   for (const item of items) {
     subtotal += ((parseFloat(item.harga) || 0) - (parseFloat(item.diskon) || 0)) * (parseInt(item.jumlah, 10) || 1);
