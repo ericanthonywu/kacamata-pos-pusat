@@ -22,7 +22,14 @@ exports.getById = async function (id) {
     penjualanDetailRepo.findByPenjualanId(id),
     pembayaranPenjualanRepo.findByPenjualanId(id),
   ]);
-  return { ...penjualan, detail, pembayaran };
+  const telp = penjualan.pelanggan_telp || penjualan.no_telp || '';
+  return {
+    ...penjualan,
+    detail,
+    pembayaran,
+    pelanggan_telp: telp,
+    no_telp: telp,
+  };
 };
 
 exports.getByNoNota = async function (noNota) {

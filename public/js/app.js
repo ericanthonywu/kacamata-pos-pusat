@@ -116,7 +116,7 @@ async function printNotaData(d) {
 
     var no = d.no_nota || '-';
     var nama = d.pelanggan_nama || '-';
-    var telp = d.pelanggan_telp || '-';
+    var telp = d.pelanggan_telp || d.no_telp || d.telp || d.pelanggan_no_telp || '-';
     var sales = d.sales_nama || '-';
 
     var frameItem = (d.detail || []).find(function (i) { return i.tipe === 'frame'; });
@@ -286,6 +286,7 @@ async function printNotaData(d) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
+            branch: 'pontianak',
             data: d,
             text: textData,
             printerName: printerName

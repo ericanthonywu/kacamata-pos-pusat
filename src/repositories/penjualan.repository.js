@@ -1,5 +1,5 @@
 const db = require('../config/database');
-const { todayCompact } = require('../utils/date.helper');
+const { todayCompact, currentYearMonthCompact } = require('../utils/date.helper');
 const TABLE = 'penjualan';
 
 exports.findAll = function () {
@@ -119,9 +119,9 @@ exports.findByNoNota = function (no_nota) {
 };
 
 exports.generateNotaNumber = async function (is_b2b) {
-  const today = todayCompact();
+  const yearMonth = currentYearMonthCompact();
   const tag = is_b2b ? 'B2B' : 'INV';
-  const prefix = `${tag}-${today}-`;
+  const prefix = `${tag}-${yearMonth}-`;
   const lastNota = await db(TABLE)
     .where('no_nota', 'like', `${prefix}%`)
     .orderBy('no_nota', 'desc')
