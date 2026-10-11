@@ -382,12 +382,15 @@ function generateTsplBarcodes(items, format, options) {
 
   if (pairs.length === 0) return '';
 
+  var shiftDotsX = Math.round(shiftX * 8);
+  var leftX = Math.max(0, 36 + shiftDotsX);
+  var rightX = Math.max(0, 328 + shiftDotsX);
+
   var commands = [];
   commands.push('SIZE 73 mm, 19 mm');
   commands.push('GAP 2 mm, 0 mm');
   commands.push('DIRECTION 1');
-  var refX = Math.max(0, Math.round(shiftX * 8));
-  commands.push('REFERENCE ' + refX + ',0');
+  commands.push('REFERENCE 0,0');
   var shiftDots = Math.round(shiftY * 8);
   commands.push('SHIFT ' + shiftDots);
 
@@ -397,7 +400,7 @@ function generateTsplBarcodes(items, format, options) {
 
   function renderHalf(item, startX, maxColWidth) {
     if (!item) return [];
-    maxColWidth = maxColWidth || 235;
+    maxColWidth = maxColWidth || 220;
     var halfCmds = [];
     var rawName = (item.nama_barang || '-').toUpperCase();
     var cleanName = sanitize(rawName);
@@ -406,7 +409,7 @@ function generateTsplBarcodes(items, format, options) {
 
     // Name: font 2 (12x20) if <= 18 chars, font 1 (8x12) if longer
     if (cleanName.length > 18) {
-      halfCmds.push('TEXT ' + startX + ',12,"1",0,1,1,"' + cleanName.substring(0, 28) + '"');
+      halfCmds.push('TEXT ' + startX + ',12,"1",0,1,1,"' + cleanName.substring(0, 26) + '"');
     } else {
       halfCmds.push('TEXT ' + startX + ',8,"2",0,1,1,"' + cleanName.substring(0, 18) + '"');
     }
@@ -425,7 +428,7 @@ function generateTsplBarcodes(items, format, options) {
     // Bottom line: barcode left, price right
     halfCmds.push('TEXT ' + startX + ',82,"1",0,1,1,"' + cleanBarcode + '"');
     var priceWidth = priceStr.length * 8;
-    var priceX = Math.max(startX + 100, (startX + maxColWidth) - priceWidth);
+    var priceX = Math.max(startX + 90, (startX + maxColWidth) - priceWidth);
     halfCmds.push('TEXT ' + priceX + ',82,"1",0,1,1,"' + priceStr + '"');
 
     return halfCmds;
@@ -434,12 +437,12 @@ function generateTsplBarcodes(items, format, options) {
   for (var p = 0; p < pairs.length; p++) {
     var pair = pairs[p];
     commands.push('CLS');
-    // Left half: startX = 16, width = 235 dots
-    var leftCmds = renderHalf(pair.left, 16, 235);
+    // Left half: startX = leftX, width = 220 dots
+    var leftCmds = renderHalf(pair.left, leftX, 220);
     for (var l = 0; l < leftCmds.length; l++) commands.push(leftCmds[l]);
-    // Right half: startX = 285, width = 235 dots
+    // Right half: startX = rightX, width = 220 dots
     if (pair.right) {
-      var rightCmds = renderHalf(pair.right, 285, 235);
+      var rightCmds = renderHalf(pair.right, rightX, 220);
       for (var r = 0; r < rightCmds.length; r++) commands.push(rightCmds[r]);
     }
     commands.push('PRINT 1,1');
