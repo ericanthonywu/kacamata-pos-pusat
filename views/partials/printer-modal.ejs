@@ -38,6 +38,25 @@
           </div>
         </div>
 
+        <div class="row g-2 mb-3 p-2 rounded bg-light border">
+          <div class="col-6">
+            <label for="cfgShiftY" class="form-label small fw-semibold mb-1">Geser Vertikal (Y)</label>
+            <div class="input-group input-group-sm">
+              <input type="number" step="0.5" class="form-control font-monospace" id="cfgShiftY" value="-5">
+              <span class="input-group-text">mm</span>
+            </div>
+            <div class="form-text small" style="font-size: 0.72rem;">Minus (-) = naik ke atas. Default: -5.</div>
+          </div>
+          <div class="col-6">
+            <label for="cfgShiftX" class="form-label small fw-semibold mb-1">Geser Horizontal (X)</label>
+            <div class="input-group input-group-sm">
+              <input type="number" step="0.5" class="form-control font-monospace" id="cfgShiftX" value="0">
+              <span class="input-group-text">mm</span>
+            </div>
+            <div class="form-text small" style="font-size: 0.72rem;">Minus = kiri, Plus = kanan. Default: 0.</div>
+          </div>
+        </div>
+
         <div class="mb-3">
           <label for="cfgRawPrinter" class="form-label small fw-semibold">
             Nama Printer Nota (Dot Matrix / LX310)

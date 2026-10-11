@@ -334,9 +334,20 @@ function printNotaBrowser(lines) {
 }
 
 // TSPL (TSC Programming Language) Formatter for Barcode Labels (73mm x 19mm)
-function generateTsplBarcodes(items, format) {
+function generateTsplBarcodes(items, format, options) {
   if (!items || !items.length) return '';
   format = format || 'double';
+  options = options || {};
+
+  var shiftY = (typeof options.shiftY !== 'undefined' && options.shiftY !== null)
+    ? parseFloat(options.shiftY)
+    : (parseFloat(localStorage.getItem('barcode_shift_y')) || -5);
+  var shiftX = (typeof options.shiftX !== 'undefined' && options.shiftX !== null)
+    ? parseFloat(options.shiftX)
+    : (parseFloat(localStorage.getItem('barcode_shift_x')) || 0);
+
+  if (isNaN(shiftY)) shiftY = -5;
+  if (isNaN(shiftX)) shiftX = 0;
 
   var pairs = [];
 
@@ -375,43 +386,47 @@ function generateTsplBarcodes(items, format) {
   commands.push('SIZE 73 mm, 19 mm');
   commands.push('GAP 2 mm, 0 mm');
   commands.push('DIRECTION 1');
-  commands.push('REFERENCE 0,0');
+  var refX = Math.max(0, Math.round(shiftX * 8));
+  commands.push('REFERENCE ' + refX + ',0');
+  var shiftDots = Math.round(shiftY * 8);
+  commands.push('SHIFT ' + shiftDots);
 
   function sanitize(str) {
     return (str || '').toString().replace(/["\\]/g, '').replace(/[\r\n]/g, ' ').trim();
   }
 
-  function renderHalf(item, startX) {
+  function renderHalf(item, startX, maxColWidth) {
     if (!item) return [];
+    maxColWidth = maxColWidth || 235;
     var halfCmds = [];
     var rawName = (item.nama_barang || '-').toUpperCase();
     var cleanName = sanitize(rawName);
     var cleanBarcode = sanitize(item.barcode_id || '');
     var priceStr = '- Rp ' + Number(item.harga_jual || 0).toLocaleString('id-ID');
 
-    // Name: font 2 (12x20) if short, font 1 (8x12) if long
-    if (cleanName.length > 22) {
-      halfCmds.push('TEXT ' + startX + ',14,"1",0,1,1,"' + cleanName.substring(0, 33) + '"');
+    // Name: font 2 (12x20) if <= 18 chars, font 1 (8x12) if longer
+    if (cleanName.length > 18) {
+      halfCmds.push('TEXT ' + startX + ',12,"1",0,1,1,"' + cleanName.substring(0, 28) + '"');
     } else {
-      halfCmds.push('TEXT ' + startX + ',10,"2",0,1,1,"' + cleanName.substring(0, 22) + '"');
+      halfCmds.push('TEXT ' + startX + ',8,"2",0,1,1,"' + cleanName.substring(0, 18) + '"');
     }
 
     // Barcode: Code 128
     if (cleanBarcode) {
       var approxWidth = (cleanBarcode.length + 3) * 11 + 15;
       var offset = 0;
-      if (approxWidth < 270) {
-        offset = Math.floor((270 - approxWidth) / 2);
+      if (approxWidth < maxColWidth) {
+        offset = Math.floor((maxColWidth - approxWidth) / 2);
       }
       var barcodeX = startX + offset;
-      halfCmds.push('BARCODE ' + barcodeX + ',36,"128",48,0,0,1,1,"' + cleanBarcode + '"');
+      halfCmds.push('BARCODE ' + barcodeX + ',32,"128",42,0,0,1,1,"' + cleanBarcode + '"');
     }
 
     // Bottom line: barcode left, price right
-    halfCmds.push('TEXT ' + startX + ',92,"1",0,1,1,"' + cleanBarcode + '"');
+    halfCmds.push('TEXT ' + startX + ',82,"1",0,1,1,"' + cleanBarcode + '"');
     var priceWidth = priceStr.length * 8;
-    var priceX = Math.max(startX + 120, (startX + 270) - priceWidth);
-    halfCmds.push('TEXT ' + priceX + ',92,"1",0,1,1,"' + priceStr + '"');
+    var priceX = Math.max(startX + 100, (startX + maxColWidth) - priceWidth);
+    halfCmds.push('TEXT ' + priceX + ',82,"1",0,1,1,"' + priceStr + '"');
 
     return halfCmds;
   }
@@ -419,12 +434,12 @@ function generateTsplBarcodes(items, format) {
   for (var p = 0; p < pairs.length; p++) {
     var pair = pairs[p];
     commands.push('CLS');
-    // Left half
-    var leftCmds = renderHalf(pair.left, 16);
+    // Left half: startX = 16, width = 235 dots
+    var leftCmds = renderHalf(pair.left, 16, 235);
     for (var l = 0; l < leftCmds.length; l++) commands.push(leftCmds[l]);
-    // Right half
+    // Right half: startX = 285, width = 235 dots
     if (pair.right) {
-      var rightCmds = renderHalf(pair.right, 312);
+      var rightCmds = renderHalf(pair.right, 285, 235);
       for (var r = 0; r < rightCmds.length; r++) commands.push(rightCmds[r]);
     }
     commands.push('PRINT 1,1');
@@ -528,7 +543,9 @@ async function printBarcodesFromItems(items, format, btn) {
     const barcodePrinter = localStorage.getItem('barcode_printer_name') || 'BARCODE';
 
     if (!disableLocalPrint) {
-      const tsplData = generateTsplBarcodes(items, format);
+      const shiftY = parseFloat(localStorage.getItem('barcode_shift_y')) || -5;
+      const shiftX = parseFloat(localStorage.getItem('barcode_shift_x')) || 0;
+      const tsplData = generateTsplBarcodes(items, format, { shiftY: shiftY, shiftX: shiftX });
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const timeoutId = controller ? setTimeout(() => controller.abort(), 3500) : null;
 
@@ -542,7 +559,9 @@ async function printBarcodesFromItems(items, format, btn) {
             text: tsplData,
             items: items,
             format: format,
-            printerName: barcodePrinter
+            printerName: barcodePrinter,
+            shiftY: shiftY,
+            shiftX: shiftX
           }),
           signal: controller ? controller.signal : undefined
         });
@@ -613,11 +632,15 @@ $(function () {
     var barcodePrinter = localStorage.getItem('barcode_printer_name') || 'BARCODE';
     var rawPrinter = localStorage.getItem('raw_printer_name') || 'LX310';
     var isEnabled = localStorage.getItem('LOCAL_PRINT_SERVICE') !== '0';
+    var shiftY = localStorage.getItem('barcode_shift_y') || '-5';
+    var shiftX = localStorage.getItem('barcode_shift_x') || '0';
 
     $('#cfgPrintHost').val(host);
     $('#cfgBarcodePrinter').val(barcodePrinter);
     $('#cfgRawPrinter').val(rawPrinter);
     $('#cfgEnableLocalPrint').prop('checked', isEnabled);
+    $('#cfgShiftY').val(shiftY);
+    $('#cfgShiftX').val(shiftX);
 
     // Cek koneksi ke print service
     $('#badgePrintServiceStatus').removeClass('bg-success bg-danger').addClass('bg-secondary').text('Checking...');
@@ -655,11 +678,15 @@ $(function () {
     var barcodePrinter = ($('#cfgBarcodePrinter').val() || 'BARCODE').trim();
     var rawPrinter = ($('#cfgRawPrinter').val() || 'LX310').trim();
     var isEnabled = $('#cfgEnableLocalPrint').is(':checked');
+    var shiftY = ($('#cfgShiftY').val() || '-5').trim();
+    var shiftX = ($('#cfgShiftX').val() || '0').trim();
 
     localStorage.setItem('print_service_host', host);
     localStorage.setItem('barcode_printer_name', barcodePrinter);
     localStorage.setItem('raw_printer_name', rawPrinter);
     localStorage.setItem('LOCAL_PRINT_SERVICE', isEnabled ? '1' : '0');
+    localStorage.setItem('barcode_shift_y', shiftY);
+    localStorage.setItem('barcode_shift_x', shiftX);
 
     showToast('Pengaturan printer berhasil disimpan!', 'success');
     var modalEl = document.getElementById('modalPrinterSettings');
@@ -672,6 +699,8 @@ $(function () {
     var btn = this;
     var host = ($('#cfgPrintHost').val() || 'http://localhost:3000').trim().replace(/\/+$/, '');
     var printer = ($('#cfgBarcodePrinter').val() || 'BARCODE').trim();
+    var shiftY = parseFloat($('#cfgShiftY').val()) || -5;
+    var shiftX = parseFloat($('#cfgShiftX').val()) || 0;
 
     var origHtml = $(btn).html();
     $(btn).addClass('disabled').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Testing...');
@@ -679,7 +708,7 @@ $(function () {
     var sampleItems = [
       { barcode_id: 'TEST-0001', nama_barang: 'TEST BARCODE OPTIK', harga_jual: 150000, jumlah: 1 }
     ];
-    var tspl = generateTsplBarcodes(sampleItems, 'double');
+    var tspl = generateTsplBarcodes(sampleItems, 'double', { shiftY: shiftY, shiftX: shiftX });
 
     try {
       const res = await fetch(host + '/api/print-barcode', {
@@ -689,7 +718,9 @@ $(function () {
           text: tspl,
           items: sampleItems,
           format: 'double',
-          printerName: printer
+          printerName: printer,
+          shiftY: shiftY,
+          shiftX: shiftX
         }),
         signal: AbortSignal.timeout(3500)
       });
