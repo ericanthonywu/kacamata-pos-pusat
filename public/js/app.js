@@ -333,124 +333,6 @@ function printNotaBrowser(lines) {
   setTimeout(() => { w.print(); }, 300);
 }
 
-// TSPL (TSC Programming Language) Formatter for Barcode Labels (73mm x 19mm)
-function generateTsplBarcodes(items, format, options) {
-  if (!items || !items.length) return '';
-  format = format || 'double';
-  options = options || {};
-
-  var shiftY = (typeof options.shiftY !== 'undefined' && options.shiftY !== null)
-    ? parseFloat(options.shiftY)
-    : (parseFloat(localStorage.getItem('barcode_shift_y')) || -5);
-  var shiftX = (typeof options.shiftX !== 'undefined' && options.shiftX !== null)
-    ? parseFloat(options.shiftX)
-    : (parseFloat(localStorage.getItem('barcode_shift_x')) || 0);
-
-  if (isNaN(shiftY)) shiftY = -5;
-  if (isNaN(shiftX)) shiftX = 0;
-
-  var pairs = [];
-
-  if (format === 'double') {
-    // Each item is duplicated on both halves for the given quantity
-    for (var i = 0; i < items.length; i++) {
-      var it = items[i];
-      var qty = parseInt(it.jumlah, 10);
-      if (isNaN(qty) || qty < 1) qty = 1;
-      for (var q = 0; q < qty; q++) {
-        pairs.push({ left: it, right: it });
-      }
-    }
-  } else {
-    // Single: expand all items by qty, then pair sequentially
-    var expanded = [];
-    for (var j = 0; j < items.length; j++) {
-      var item = items[j];
-      var count = parseInt(item.jumlah, 10);
-      if (isNaN(count) || count < 1) count = 1;
-      for (var k = 0; k < count; k++) {
-        expanded.push(item);
-      }
-    }
-    for (var m = 0; m < expanded.length; m += 2) {
-      pairs.push({
-        left: expanded[m],
-        right: (m + 1 < expanded.length) ? expanded[m + 1] : null
-      });
-    }
-  }
-
-  if (pairs.length === 0) return '';
-
-  var shiftDotsX = Math.round(shiftX * 8);
-  var leftX = Math.max(0, 36 + shiftDotsX);
-  var rightX = Math.max(0, 328 + shiftDotsX);
-
-  var commands = [];
-  commands.push('SIZE 73 mm, 19 mm');
-  commands.push('GAP 2 mm, 0 mm');
-  commands.push('DIRECTION 1');
-  commands.push('REFERENCE 0,0');
-  var shiftDots = Math.round(shiftY * 8);
-  commands.push('SHIFT ' + shiftDots);
-
-  function sanitize(str) {
-    return (str || '').toString().replace(/["\\]/g, '').replace(/[\r\n]/g, ' ').trim();
-  }
-
-  function renderHalf(item, startX, maxColWidth) {
-    if (!item) return [];
-    maxColWidth = maxColWidth || 220;
-    var halfCmds = [];
-    var rawName = (item.nama_barang || '-').toUpperCase();
-    var cleanName = sanitize(rawName);
-    var cleanBarcode = sanitize(item.barcode_id || '');
-    var priceStr = '- Rp ' + Number(item.harga_jual || 0).toLocaleString('id-ID');
-
-    // Name: font 2 (12x20) if <= 18 chars, font 1 (8x12) if longer
-    if (cleanName.length > 18) {
-      halfCmds.push('TEXT ' + startX + ',12,"1",0,1,1,"' + cleanName.substring(0, 26) + '"');
-    } else {
-      halfCmds.push('TEXT ' + startX + ',8,"2",0,1,1,"' + cleanName.substring(0, 18) + '"');
-    }
-
-    // Barcode: Code 128
-    if (cleanBarcode) {
-      var approxWidth = (cleanBarcode.length + 3) * 11 + 15;
-      var offset = 0;
-      if (approxWidth < maxColWidth) {
-        offset = Math.floor((maxColWidth - approxWidth) / 2);
-      }
-      var barcodeX = startX + offset;
-      halfCmds.push('BARCODE ' + barcodeX + ',32,"128",42,0,0,1,1,"' + cleanBarcode + '"');
-    }
-
-    // Bottom line: barcode left, price right
-    halfCmds.push('TEXT ' + startX + ',82,"1",0,1,1,"' + cleanBarcode + '"');
-    var priceWidth = priceStr.length * 8;
-    var priceX = Math.max(startX + 90, (startX + maxColWidth) - priceWidth);
-    halfCmds.push('TEXT ' + priceX + ',82,"1",0,1,1,"' + priceStr + '"');
-
-    return halfCmds;
-  }
-
-  for (var p = 0; p < pairs.length; p++) {
-    var pair = pairs[p];
-    commands.push('CLS');
-    // Left half: startX = leftX, width = 220 dots
-    var leftCmds = renderHalf(pair.left, leftX, 220);
-    for (var l = 0; l < leftCmds.length; l++) commands.push(leftCmds[l]);
-    // Right half: startX = rightX, width = 220 dots
-    if (pair.right) {
-      var rightCmds = renderHalf(pair.right, rightX, 220);
-      for (var r = 0; r < rightCmds.length; r++) commands.push(rightCmds[r]);
-    }
-    commands.push('PRINT 1,1');
-  }
-
-  return commands.join('\r\n') + '\r\n';
-}
-
 // Fallback: Cetak Barcode via Browser (HTML dialog)
 function printBarcodesBrowser(items, format) {
   format = format || 'double';
@@ -548,7 +430,6 @@ async function printBarcodesFromItems(items, format, btn) {
     if (!disableLocalPrint) {
       const shiftY = parseFloat(localStorage.getItem('barcode_shift_y')) || -5;
       const shiftX = parseFloat(localStorage.getItem('barcode_shift_x')) || 0;
-      const tsplData = generateTsplBarcodes(items, format, { shiftY: shiftY, shiftX: shiftX });
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const timeoutId = controller ? setTimeout(() => controller.abort(), 3500) : null;
 
@@ -559,7 +440,6 @@ async function printBarcodesFromItems(items, format, btn) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            text: tsplData,
             items: items,
             format: format,
             printerName: barcodePrinter,
@@ -711,22 +591,23 @@ $(function () {
     var sampleItems = [
       { barcode_id: 'TEST-0001', nama_barang: 'TEST BARCODE OPTIK', harga_jual: 150000, jumlah: 1 }
     ];
-    var tspl = generateTsplBarcodes(sampleItems, 'double', { shiftY: shiftY, shiftX: shiftX });
 
     try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 3500) : null;
       const res = await fetch(host + '/api/print-barcode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: tspl,
           items: sampleItems,
           format: 'double',
           printerName: printer,
           shiftY: shiftY,
           shiftX: shiftX
         }),
-        signal: AbortSignal.timeout(3500)
+        signal: controller ? controller.signal : undefined
       });
+      if (timeoutId) clearTimeout(timeoutId);
       const data = await res.json();
       if (res.ok && data.success) {
         showToast('Test print barcode berhasil dikirim ke ' + printer + '!', 'success');
