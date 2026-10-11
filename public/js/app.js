@@ -286,6 +286,7 @@ async function printNotaData(d) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
+            data: d,
             text: textData,
             printerName: printerName
           }),
@@ -641,6 +642,7 @@ $(function () {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          type: 'test_nota',
           text: testNota,
           printerName: printer
         }),
