@@ -2,7 +2,7 @@ const marginRepo = require('../repositories/margin.repository');
 
 /**
  * Service for margin (profit/loss) analysis per penjualan.
- * Margin formula: harga_jual - harga_beli (BPJS excluded).
+ * Margin formula: harga_jual - harga_beli.
  * For DP payments: margin is calculated based on actual money received (uang masuk).
  */
 

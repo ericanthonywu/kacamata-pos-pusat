@@ -42,17 +42,6 @@ exports.getSummary = async function ({ from, to, sales_id } = {}) {
     )
     .first();
 
-  // BPJS is summed per-penjualan filtered by order_date (not by kas payment date)
-  // This avoids double-counting for DP + pelunasan transactions
-  let bpjsQuery = db('penjualan')
-    .where('penjualan.is_b2b', false);
-  if (from) bpjsQuery = bpjsQuery.where('penjualan.order_date', '>=', from);
-  if (to) bpjsQuery = bpjsQuery.where('penjualan.order_date', '<=', to);
-  if (sales_id) bpjsQuery = bpjsQuery.where('penjualan.sales_id', sales_id);
-
-  const bpjsRes = await bpjsQuery.sum('bpjs as total_bpjs').first();
-  result.total_bpjs = bpjsRes ? parseFloat(bpjsRes.total_bpjs || 0) : 0;
-
   return result;
 };
 
@@ -97,9 +86,8 @@ exports.getDatatablesData = async function (params) {
     3: 'sales.nama',
     4: 'penjualan.subtotal',
     5: 'penjualan.dp',
-    8: 'penjualan.bpjs',
-    9: 'kas.kategori',
-    10: 'kas.jumlah',
+    8: 'kas.kategori',
+    9: 'kas.jumlah',
   };
 
   if (order && order.length > 0) {
@@ -133,7 +121,6 @@ exports.getDatatablesData = async function (params) {
     'kas.keterangan',
     'penjualan.subtotal',
     'penjualan.dp',
-    'penjualan.bpjs',
     'penjualan.total',
     'penjualan.status_bayar',
     'metode_pembayaran.nama as metode_bayar',

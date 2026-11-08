@@ -171,11 +171,6 @@
               <div class="col-6"><strong>Jumlah</strong></div>
               <div class="col-6 text-end fw-bold" id="subtotalDisplay">Rp 0</div>
             </div>
-            <div class="row g-2 align-items-center mb-2">
-              <div class="col-6"><label class="form-label small mb-0">BPJS</label></div>
-              <div class="col-6"><input type="text" class="form-control form-control-sm calc-input input-currency"
-                  id="bpjs" value="0" min="0"></div>
-            </div>
             <hr>
             <div class="row g-2 align-items-center mb-2">
               <div class="col-6"><label class="form-label small mb-0">Pembayaran</label></div>
@@ -394,12 +389,11 @@
             subtotal += (lh * lq);
           }
 
-          var bpjs = parseFloat($('#bpjs').val().replace(/[^0-9]/g, '')) || 0;
           var isDp = $('#status_bayar').val() === 'dp';
           var dpAmount = isDp ? (parseFloat($('#dp_amount').val().replace(/[^0-9]/g, '')) || 0) : 0;
           
           $('#subtotalDisplay').text(fmtRp(subtotal));
-          $('#totalDisplay').text(fmtRp(subtotal - bpjs - dpAmount));
+          $('#totalDisplay').text(fmtRp(subtotal - dpAmount));
         }
 
         function fmtRp(v) { return 'Rp ' + Number(v || 0).toLocaleString('id-ID'); }
@@ -452,7 +446,6 @@
             sales_id: salesId,
             order_date: $('#order_date').val(),
             tanggal_selesai: $('#tanggal_selesai').val() || null,
-            bpjs: parseFloat($('#bpjs').val().replace(/[^0-9]/g, '')) || 0,
             status_bayar: $('#status_bayar').val(),
             metode_bayar: metodeBayar,
             dp: parseInt($('#dp_amount').val().replace(/[^0-9]/g, '')) || 0,

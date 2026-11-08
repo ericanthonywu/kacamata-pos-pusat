@@ -283,7 +283,7 @@ throw Object.assign(new Error('Human-readable message'), { status: 400 });
 | `sales` | `id`, `nama`, `komisi_frame`, `komisi_lensa`, `tanggal_kerja`, `status` (`aktif`/`nonaktif`) |
 | `pengguna` | `id`, `nama`, `username`, `password_hash`, `hak_akses` (`admin`/`kasir`) |
 | `metode_pembayaran` | `id`, `nama` |
-| `penjualan` | `id`, `no_nota` (`INV-YYYYMMDD-XXXX`/`B2B-YYYYMMDD-XXXX`), `pelanggan_id`, `sales_id`, `created_by`, `order_date`, `subtotal`, `bpjs`, `total`, `status_bayar`, `dp`, `metode_bayar_id`, `is_b2b` |
+| `penjualan` | `id`, `no_nota` (`INV-YYYYMMDD-XXXX`/`B2B-YYYYMMDD-XXXX`), `pelanggan_id`, `sales_id`, `created_by`, `order_date`, `subtotal`, `total`, `status_bayar`, `dp`, `metode_bayar_id`, `is_b2b` |
 | `penjualan_detail` | `id`, `penjualan_id`, `tipe` (`frame`/`lensa_l`/`lensa_r`/`lain_lain`), `barang_id`, `harga`, `diskon`, `jumlah` |
 | `pembayaran-penjualan` | `id`, `penjualan_id`, `tanggal_bayar`, `jumlah_bayar`, `metode_bayar_id` |
 | `kas` | `id`, `tipe` (`masuk`/`keluar`), `kategori`, `jumlah`, `tanggal`, `referensi_id`, `referensi_tipe`, `penjualan_id`, `metode_bayar_id` |

@@ -83,6 +83,14 @@ var dtLanguageID = {
   }
 };
 
+// DataTables Global Defaults
+if (typeof $ !== 'undefined' && $.fn && $.fn.dataTable) {
+  $.extend(true, $.fn.dataTable.defaults, {
+    language: dtLanguageID,
+    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']]
+  });
+}
+
 function escapeHtml(unsafe) {
   return (unsafe || '').toString()
     .replace(/&/g, "&amp;")
@@ -204,9 +212,6 @@ async function printNotaData(d) {
 
     // Totals (right-aligned)
     lines.push(padRight('', W - 45) + padRight('Jumlah', 22) + ': ' + padLeft('Rp ' + Number(subtotal).toLocaleString('id-ID'), 21));
-    if (d.bpjs > 0) {
-      lines.push(padRight('', W - 45) + padRight('BPJS', 22) + ': ' + padLeft('- Rp ' + Number(d.bpjs).toLocaleString('id-ID'), 21));
-    }
     lines.push(padRight('', W - 45) + padRight('Uang Muka', 22) + ': ' + padLeft('Rp ' + Number(dp).toLocaleString('id-ID'), 21));
     lines.push(padRight('', W - 45) + padRight('Sisa', 22) + ': ' + padLeft('Rp ' + Number(sisa).toLocaleString('id-ID'), 21));
     if (d.metode_bayar) {

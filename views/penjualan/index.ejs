@@ -29,7 +29,6 @@
             <th>No. Nota</th>
             <th>Pelanggan</th>
             <th>Total</th>
-            <th>BPJS</th>
             <th>DP</th>
             <th>Metode Bayar</th>
             <th>Sisa Bayar</th>
@@ -100,7 +99,7 @@
             }
           },
           order: [[0, 'desc']],
-          lengthMenu: [[10, 50, 100, -1], [10, 50, 100, "All"]],
+          lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
           layout: {
             topStart: {
               pageLength: {},
@@ -148,10 +147,6 @@
             {
               data: 'total',
               className: 'fw-bold',
-              render: function (data) { return fmtRp(data); }
-            },
-            {
-              data: 'bpjs',
               render: function (data) { return fmtRp(data); }
             },
             {

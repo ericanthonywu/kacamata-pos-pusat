@@ -160,7 +160,6 @@ async function run() {
         order_date: row.orderDate,
         biaya: 0,
         subtotal: row.total,
-        bpjs: 0,
         total: row.total,
         dp: row.bayar,
         status_bayar: statusBayar,

@@ -84,8 +84,7 @@ exports.create = async function (data, userId) {
     salesRecord = await salesRepo.findById(data.sales_id);
   }
 
-  const bpjsAmount = parseFloat(data.bpjs) || 0;
-  const total = subtotal - bpjsAmount;
+  const total = subtotal;
   const no_nota = await penjualanRepo.generateNotaNumber(data.is_b2b);
 
   const penjualanData = {
@@ -97,7 +96,6 @@ exports.create = async function (data, userId) {
     tanggal_selesai: data.tanggal_selesai || null,
     biaya: 0,
     subtotal,
-    bpjs: bpjsAmount,
     total,
     status_bayar: data.status_bayar || 'lunas',
     dp: parseFloat(data.dp) || 0,

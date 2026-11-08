@@ -114,7 +114,7 @@
     <div class="stat-card">
       <i class="bi bi-cash-stack stat-icon text-primary"></i>
       <div class="stat-value text-primary"><%= fmtRp(summary.total_penjualan) %></div>
-      <div class="stat-label">Total Nilai Jual (Excl. BPJS)</div>
+      <div class="stat-label">Total Nilai Jual</div>
     </div>
   </div>
   <div class="col">
@@ -235,7 +235,7 @@
       <small class="text-muted">Klik pada baris atau ikon panah untuk melihat rincian modal barang dan margin kas per pembayaran</small>
     </div>
     <div>
-      <span class="badge bg-light text-dark border"><i class="bi bi-info-circle me-1 text-primary"></i>Rumus Margin: Nilai Jual - Harga Beli (Excl. BPJS)</span>
+      <span class="badge bg-light text-dark border"><i class="bi bi-info-circle me-1 text-primary"></i>Rumus Margin: Nilai Jual - Harga Beli</span>
     </div>
   </div>
 
@@ -496,7 +496,7 @@
       ordering: true,
       searching: true,
       pageLength: 25,
-      lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+      lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
       order: [[1, 'desc']], // Default: Order Date DESC
       language: dtLanguageID,
       ajax: {

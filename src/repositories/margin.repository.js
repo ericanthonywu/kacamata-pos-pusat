@@ -140,7 +140,6 @@ exports.getDatatablesData = async function (params) {
     'penjualan.no_nota',
     'penjualan.order_date',
     'penjualan.subtotal',
-    'penjualan.bpjs',
     'penjualan.total',
     'penjualan.dp',
     'penjualan.status_bayar',

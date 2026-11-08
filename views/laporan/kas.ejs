@@ -73,21 +73,13 @@
     </div>
     <% } %>
 
-    <div class="row g-3 mb-4 row-cols-2 row-cols-md-<%= currentUser.hak_akses === 'admin' ? '5' : '2' %>">
+    <div class="row g-3 mb-4 row-cols-2 row-cols-md-<%= currentUser.hak_akses === 'admin' ? '4' : '1' %>">
       <div class="col">
         <div class="stat-card"><i class="bi bi-receipt stat-icon text-info"></i>
           <div class="stat-value">
             <%= summary.total_pembayaran %>
           </div>
           <div class="stat-label">Total Transaksi</div>
-        </div>
-      </div>
-      <div class="col">
-        <div class="stat-card"><i class="bi bi-shield-plus stat-icon text-secondary"></i>
-          <div class="stat-value">
-            <%= fmtRp(summary.total_bpjs) %>
-          </div>
-          <div class="stat-label">Total BPJS</div>
         </div>
       </div>
       <% if (currentUser.hak_akses === 'admin') { %>
@@ -130,7 +122,6 @@
             <th>DP</th>
             <th>Pelunasan</th>
             <th>Metode Bayar</th>
-            <th>BPJS</th>
             <th>Status</th>
             <% if (currentUser.hak_akses === 'admin') { %>
             <th>Uang Masuk</th>
@@ -188,7 +179,7 @@
         }
 
         var isAdmin = <%= currentUser.hak_akses === 'admin' ? 'true' : 'false' %>;
-        var exportCols = isAdmin ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        var exportCols = isAdmin ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] : [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
         var dtColumns = [
             {
@@ -254,13 +245,6 @@
               }
             },
             {
-              data: 'bpjs',
-              render: function (data, type, row) {
-                if (row.tipe === 'keluar') return '-';
-                return parseFloat(data) > 0 ? fmtRp(data) : '-';
-              }
-            },
-            {
               data: 'kategori',
               render: function (data) {
                 if (data === 'retur_penjualan') return '<span class="badge bg-danger">Retur</span>';
@@ -306,7 +290,7 @@
             }
           },
           order: [[1, 'desc']],
-          lengthMenu: [[10, 50, 100, -1], [10, 50, 100, "All"]],
+          lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
           layout: {
             topStart: {
               pageLength: {},
