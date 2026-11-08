@@ -86,6 +86,7 @@ exports.getDatatablesData = async function (params) {
     3: 'sales.nama',
     4: 'penjualan.subtotal',
     5: 'penjualan.dp',
+    7: 'metode_pembayaran.nama',
     8: 'kas.kategori',
     9: 'kas.jumlah',
   };
