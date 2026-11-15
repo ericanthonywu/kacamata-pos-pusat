@@ -452,7 +452,7 @@ function renderTransferRow(item) {
   var isExceeded = item.stok_pusat > 0 && item.qty > item.stok_pusat;
   var qtyHtml = '<div class="input-group input-group-sm justify-content-center">' +
     '<button class="btn btn-outline-secondary btn-qty-minus" type="button" data-id="' + item.local_barang_id + '">-</button>' +
-    '<input type="number" class="form-control text-center item-qty" data-id="' + item.local_barang_id + '" value="' + item.qty + '" min="1" style="max-width: 60px;">' +
+    '<input type="text" inputmode="numeric" class="form-control text-center item-qty" data-id="' + item.local_barang_id + '" value="' + item.qty + '" style="max-width: 60px;">' +
     '<button class="btn btn-outline-secondary btn-qty-plus" type="button" data-id="' + item.local_barang_id + '">+</button>' +
     '</div>' +
     (isExceeded ? '<div class="text-danger text-center small mt-1" style="font-size:0.68rem;">Melebihi stok!</div>' : '');
@@ -818,14 +818,30 @@ $(function () {
   });
 
   // Input Qty langsung
-  $(document).on('input change', '.item-qty', function () {
+  $(document).on('input', '.item-qty', function () {
+    var raw = $(this).val().replace(/[^0-9]/g, '');
+    if ($(this).val() !== raw) $(this).val(raw);
+    if (raw === '') return;
+    var val = parseInt(raw, 10);
+    if (val < 1) { val = 1; $(this).val(1); }
     var id = parseInt($(this).data('id'), 10);
     var it = selectedItems.find(function (i) { return i.local_barang_id === id; });
     if (it) {
-      var val = parseInt($(this).val(), 10) || 1;
-      if (val < 1) val = 1;
       it.qty = val;
-      $(this).val(val);
+      calcTotal();
+      refreshCatalogBadges();
+    }
+  });
+
+  $(document).on('change blur', '.item-qty', function () {
+    var raw = $(this).val().replace(/[^0-9]/g, '');
+    var val = parseInt(raw, 10) || 1;
+    if (val < 1) val = 1;
+    $(this).val(val);
+    var id = parseInt($(this).data('id'), 10);
+    var it = selectedItems.find(function (i) { return i.local_barang_id === id; });
+    if (it) {
+      it.qty = val;
       calcTotal();
       refreshCatalogBadges();
     }
